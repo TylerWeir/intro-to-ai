@@ -10,9 +10,9 @@ class State:
     def __init__(self, m, n, starting_state):
         self.m = m
         self.n = n
-        if len(starting_state) > 0:
+        if type(starting_state[0]) == type([]):
             # Functional way to flatten a 2D list courtesy of geeksforgeeks.com. 
-            self.state = [j for sub in ini_list for j in sub]  
+            self.state = [j for sub in starting_state for j in sub]  
         else:
             self.state = starting_state
 
@@ -59,5 +59,6 @@ def solve(puzzle):
     state = State(len(puzzle), len(puzzle[0]), puzzle)
 
 if __name__ == "__main__":
-    myState = State(4, 4, [6, 5, 2, 0, 3, 7, 11, 4, 9, 1, 10, 8, 15, 14, 13, 12])
+    #myState = State(4, 4, [6, 5, 2, 0, 3, 7, 11, 4, 9, 1, 10, 8, 15, 14, 13, 12])
+    myState = State(4, 3, [1, 2, 3, 4, 0, 5, 6, 7, 9, 10, 11, 8])
     print(f'The puzzle is solveable: {myState.isSolveable()}')
