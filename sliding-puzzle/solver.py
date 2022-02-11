@@ -99,10 +99,8 @@ class State:
 
     def __hash__(self):
         """Overrides the built-in hash method."""
-        tmp = self.state[:]
-        tmp.append(self.width)
-        tmp.append(self.height)
-        return hash(tuple(tmp))
+        tmp = (* self.state, self.width, self.height)
+        return hash(tmp)
 
 def solve(puzzle):
     """Solve a sliding puzzle.
