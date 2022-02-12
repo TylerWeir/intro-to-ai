@@ -175,7 +175,7 @@ def __solve(start_state):
         current = open_list.pop()
 
         # Check if current is the goal
-        if __calc_h(current.h_score) == 0:
+        if __calc_h(current) == 0:
             return __make_path(came_from, current)
 
         for child in current.get_moves():
@@ -195,23 +195,6 @@ def __make_path(came_from, goal):
     """Returns the moves taken to get from the starting state to the 
     goal state."""
     return ['U', 'D']
-
-def __pop_smallest(dictionary):
-    """Returns the state with the smallest f_score as a tuple
-    with the parent state."""
-    items = dictionary.items()
-    lowest_state = items[0]
-
-    # Iterate through all the states in the list
-    for (state, parent) in items:
-        if state.f_score < lowest_state.f_score:
-
-            lowest_state = (state, parent)
-
-    # Return the lowest.
-    dictionary.pop(lowest_state[0])
-    return lowest_state
-
 
 if __name__ == "__main__":
     #myState = State(4, 4, [6, 5, 2, 0, 3, 7, 11, 4, 9, 1, 10, 8, 15, 14, 13, 12])
