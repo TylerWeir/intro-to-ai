@@ -11,9 +11,6 @@ class State:
     """Represents a state of a sliding puzzle."""
 
     def __init__(self, width, height, layout):
-        self.f_score = -1
-        self.h_score = self.calc_heuristic()
-        self.g_score = -1
         self.width = width
         self.height = height
 
@@ -25,37 +22,6 @@ class State:
         else:
             self.state = layout
 
-    def calc_heuristic(self):
-        """Returns the admissible heuristic of the state.
-
-        Heuristic is calculated by relaxing the constraints of the
-        puzzle and allowing tiles to move through one another.
-        For each tile, the number of rows and columns it is away
-        from its goal position is summed.
-
-        Note this heuristic works for small puzzles. It is not
-        accurate enough for large puzzles.
-        """
-
-        sum_moves = 0
-
-        for i in range(1, self.width * self.height):
-
-            index = self.state.index(i)
-
-            # TODO: verify that these are right
-            # First find number of vertical moves
-            row = index // self.width
-            goal_row = i // self.width
-
-            # Then find number of horizontal moves
-            column = index // self.height
-            goal_column = i // self.height
-
-            sum_moves += abs(goal_row - row)
-            sum_moves += abs(goal_column - column)
-
-        return sum_moves
 
     def is_solveable(self):
         """Returns True if the puzzle is possible to solve.
@@ -80,11 +46,14 @@ class State:
 
         # Solveable if the sum of zero_row and inversions is even
         return (zero_row + inversions) % 2 == 0
-    
+
     def get_moves(self):
         """Returns a tuple of the states representing the states
         possible after making a single legal move."""
         #TODO: Fill in
+    
+    def __str__(self):
+        return str(self.state)
 
     def __eq__(self, other):
         """Overrides the built-in equals method."""
@@ -135,7 +104,38 @@ class Priority_Queue:
 
 
 
-    
+def __calc_h(state:State):
+    """Returns the admissible heuristic of the state.
+
+    Heuristic is calculated by relaxing the constraints of the
+    puzzle and allowing tiles to move through one another.
+    For each tile, the number of rows and columns it is away
+    from its goal position is summed.
+
+    Note this heuristic works for small puzzles. It is not
+    accurate enough for large puzzles.
+    """
+
+    sum_moves = 0
+
+    for i in range(1, state.width * state.height):
+
+        index = state.state.index(i)
+
+        # TODO: verify that these are right
+        # First find number of vertical moves
+        row = index // state.width
+        goal_row = i // state.width
+
+        # Then find number of horizontal moves
+        column = index // state.height
+        goal_column = i // state.height
+
+        sum_moves += abs(goal_row - row)
+        sum_moves += abs(goal_column - column)
+
+    return sum_moves
+
 
 def solve(puzzle):
     """Solve a sliding puzzle.
@@ -147,16 +147,12 @@ def solve(puzzle):
 
     defined in the state class.
     """
-    state = State(len(puzzle), len(puzzle[0]), puzzle)
+    print(puzzle)
+    start_state = State(len(puzzle[0]), len(puzzle), puzzle)
 
-    if not state.is_solveable():
+    if not start_state.is_solveable():
         return None
-    else:
-       return ['U', 'D', 'U', 'D', 'U', 'D'] 
-
-def __calc_h(state: State):
-    # TODO
-    print()
+    return __solve(start_state)
 
 def __solve(start_state):
     """Private solver using A* to search through the states.
@@ -173,15 +169,14 @@ def __solve(start_state):
     g_score.update({start_state:0})
 
     f_score = {}
-    #TODO: update scoring h
-    f_score.update({start_state: start_state.h_score})
+    f_score.update({start_state: __calc_h(start_state)})
 
     while not open_list.is_empty():
         current = open_list.pop()
 
         # Check if current is the goal
-        if current.h_score == 0:
-            break
+        if __calc_h(current.h_score) == 0:
+            return __make_path(came_from, current)
 
         for child in current.get_moves():
             # Child is one move away
@@ -190,11 +185,16 @@ def __solve(start_state):
                 # This is the best path
                 came_from.update({child, current})
                 g_score.update({child: child_g_score})
-                f_score.update({child: child_g_score + child.h_score})
+                f_score.update({child: child_g_score + __calc_h(child)})
 
                 if not open_list.contains(child):
-                    open_list.add((f_score, child))
+                    open_list.add((f_score.get(child), child))
+    return None
 
+def __make_path(came_from, goal):
+    """Returns the moves taken to get from the starting state to the 
+    goal state."""
+    return ['U', 'D']
 
 def __pop_smallest(dictionary):
     """Returns the state with the smallest f_score as a tuple
@@ -215,9 +215,10 @@ def __pop_smallest(dictionary):
 
 if __name__ == "__main__":
     #myState = State(4, 4, [6, 5, 2, 0, 3, 7, 11, 4, 9, 1, 10, 8, 15, 14, 13, 12])
-    #myState = State(4, 3, [1, 2, 3, 4, 0, 5, 6, 7, 9, 10, 11, 8])
-    #print(f'The solution: {myState.solve()}')
+    myState = State(4, 3, [1, 2, 3, 4, 0, 5, 6, 7, 9, 10, 11, 8])
+    print(f'The solution: {myState.is_solveable()}')
 
+    """
     myqueue = Priority_Queue()
     myqueue.insert((3, 'apple'))
     myqueue.insert((2, 'pear'))
@@ -228,5 +229,4 @@ if __name__ == "__main__":
 
     print("popped: "+ str(myqueue.pop()))
     myqueue.insert((1, "YAYA"))
-    print("list is " + str(myqueue))
-    
+    print("list is " + str(myqueue)) """
