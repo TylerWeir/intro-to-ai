@@ -5,7 +5,7 @@ Uses the A* search algorithm to solve a given m x n sliding puzzle.
 Written by Tyler Weir
 02/09/2022"""
 
-from goto import goto, label
+import heapq
 
 class State:
     """Represents a state of a sliding puzzle."""
@@ -102,6 +102,41 @@ class State:
         tmp = (* self.state, self.width, self.height)
         return hash(tmp)
 
+class Priority_Queue:
+    """A min priority queue."""
+    def __init__(self):
+        self.entries = []
+
+    def is_empty(self):
+        """Returns True if the queue is empty."""
+        return len(self.entries) == 0
+
+    def insert(self, entry):
+        """Add and element to the pq."""
+        self.entries.append(entry)
+        heapq.heapify(self.entries)
+
+    def pop(self):
+        """Pops the element with the highest priority."""
+        item = self.entries.pop(0)
+        heapq.heapify(self.entries)
+        return item[1]
+
+    def contains(self, item):
+        """Returns true if the item is contained in the set"""
+        for entry in self.entries:
+            if entry[1] == item:
+                return True
+
+        return False
+
+    def __str__(self):
+        return str(self.entries)
+
+
+
+    
+
 def solve(puzzle):
     """Solve a sliding puzzle.
     Keyword arguments:
@@ -119,58 +154,47 @@ def solve(puzzle):
     else:
        return ['U', 'D', 'U', 'D', 'U', 'D'] 
 
+def __calc_h(state: State):
+    # TODO
+    print()
+
 def __solve(start_state):
     """Private solver using A* to search through the states.
 
     Keyword arguments:
     start_state -- A SOLVABLE State"""
 
-    #TODO: Implement A*
-    open_list = {}
-    closed_list = {}
+    # Setup
+    open_list = Priority_Queue()
+    open_list.insert((1, start_state))
+    came_from = {}
 
-    # Put the start node on the open list with f = h
-    open_list.update({start_state:None})
-    start_state.f_score = start_state.h_score
+    g_score = {}
+    g_score.update({start_state:0})
 
-    while len(open_list.keys()) > 0:
-        #TODO: When to update h and g and f?
-        current = __pop_smallest(open_list)
-        if current[0].h_score == 0:
-            # We found the solution
+    f_score = {}
+    #TODO: update scoring h
+    f_score.update({start_state: start_state.h_score})
+
+    while not open_list.is_empty():
+        current = open_list.pop()
+
+        # Check if current is the goal
+        if current.h_score == 0:
             break
 
-        # Generate the sucessor states
-        moves = current[0].get_moves()
+        for child in current.get_moves():
+            # Child is one move away
+            child_g_score = g_score.get(current)+1
+            if g_score.get(child) == None or child_g_score < g_score.get(child):
+                # This is the best path
+                came_from.update({child, current})
+                g_score.update({child: child_g_score})
+                f_score.update({child: child_g_score + child.h_score})
 
-        for move in moves:
-            #set current move cost
-            current_cost = 3#TODO
+                if not open_list.contains(child):
+                    open_list.add((f_score, child))
 
-            # Is the move on the open list?
-            if open_list.get(move) != None:
-                if move.g_score <= current_cost:
-                    goto .add_to_closed_list
-            # Is the move on the closed list?
-            elif close_list.get(move) != None:
-                if move.g_score <= current_cost:
-                    goto .add_to_closed_list
-                else:
-                    # move the move from the closed list to
-                    # the open list
-                    closed_list.pop(move)
-                    open_list.update({move:current[0]})
-
-            else:
-                # Add move to the open list
-                open_list.update({move: current[0]})
-                # TODO set move.h_score
-            move.g_score = current_cost
-
-        label .add_to_closed_list
-        closed_list.update(current[0], current[1])
-   # should be done
-   # TODO return the closed list?
 
 def __pop_smallest(dictionary):
     """Returns the state with the smallest f_score as a tuple
@@ -191,5 +215,18 @@ def __pop_smallest(dictionary):
 
 if __name__ == "__main__":
     #myState = State(4, 4, [6, 5, 2, 0, 3, 7, 11, 4, 9, 1, 10, 8, 15, 14, 13, 12])
-    myState = State(4, 3, [1, 2, 3, 4, 0, 5, 6, 7, 9, 10, 11, 8])
-    print(f'The solution: {myState.solve()}')
+    #myState = State(4, 3, [1, 2, 3, 4, 0, 5, 6, 7, 9, 10, 11, 8])
+    #print(f'The solution: {myState.solve()}')
+
+    myqueue = Priority_Queue()
+    myqueue.insert((3, 'apple'))
+    myqueue.insert((2, 'pear'))
+    myqueue.insert((5, 'orange'))
+    myqueue.insert((11, 'red'))
+
+    print("list is " + str(myqueue))
+
+    print("popped: "+ str(myqueue.pop()))
+    myqueue.insert((1, "YAYA"))
+    print("list is " + str(myqueue))
+    
