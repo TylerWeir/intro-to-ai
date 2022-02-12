@@ -57,7 +57,7 @@ class State:
 
         return sum_moves
 
-    def __is_solveable(self):
+    def is_solveable(self):
         """Returns True if the puzzle is possible to solve.
         False otherwise."""
 
@@ -114,6 +114,11 @@ def solve(puzzle):
     """
     state = State(len(puzzle), len(puzzle[0]), puzzle)
 
+    if not state.is_solveable():
+        return None
+    else:
+       return ['U', 'D', 'U', 'D', 'U', 'D'] 
+
 def __solve(start_state):
     """Private solver using A* to search through the states.
 
@@ -131,38 +136,41 @@ def __solve(start_state):
     while len(open_list.keys()) > 0:
         #TODO: When to update h and g and f?
         current = __pop_smallest(open_list)
-        if current.h_score == 0:
+        if current[0].h_score == 0:
             # We found the solution
             break
 
         # Generate the sucessor states
-        moves = current.get_moves()
+        moves = current[0].get_moves()
 
         for move in moves:
-            #set current move cost 
-            current_cost = #TODO
-            
+            #set current move cost
+            current_cost = 3#TODO
+
             # Is the move on the open list?
             if open_list.get(move) != None:
-                if move.g_score <= current_cost: 
+                if move.g_score <= current_cost:
                     goto .add_to_closed_list
             # Is the move on the closed list?
-            else if close_list.get(move) != None:
+            elif close_list.get(move) != None:
                 if move.g_score <= current_cost:
                     goto .add_to_closed_list
                 else:
-                    # TODO: move the move from the closed list to 
+                    # move the move from the closed list to
                     # the open list
-            else: 
-                # TODO Add move to the open list 
-                # TODO set move.h_score 
+                    closed_list.pop(move)
+                    open_list.update({move:current[0]})
+
+            else:
+                # Add move to the open list
+                open_list.update({move: current[0]})
+                # TODO set move.h_score
             move.g_score = current_cost
-            #TODO set parent of move to current state
 
         label .add_to_closed_list
+        closed_list.update(current[0], current[1])
    # should be done
    # TODO return the closed list?
-
 
 def __pop_smallest(dictionary):
     """Returns the state with the smallest f_score as a tuple
@@ -173,6 +181,7 @@ def __pop_smallest(dictionary):
     # Iterate through all the states in the list
     for (state, parent) in items:
         if state.f_score < lowest_state.f_score:
+
             lowest_state = (state, parent)
 
     # Return the lowest.
@@ -183,4 +192,4 @@ def __pop_smallest(dictionary):
 if __name__ == "__main__":
     #myState = State(4, 4, [6, 5, 2, 0, 3, 7, 11, 4, 9, 1, 10, 8, 15, 14, 13, 12])
     myState = State(4, 3, [1, 2, 3, 4, 0, 5, 6, 7, 9, 10, 11, 8])
-    print(f'The puzzle is solveable: {myState.is_solveable()}')
+    print(f'The solution: {myState.solve()}')
