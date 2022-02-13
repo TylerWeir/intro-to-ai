@@ -14,6 +14,12 @@ class State:
         self.width = width
         self.height = height
 
+        self.g = -1
+        self.h = -1
+        self.f = -1
+
+        self.parent = None
+
         # Flatten the layout if it came as a 2D array
         if type(layout[0]) == type([]):
             # Functional way to flatten a 2D list courtesy of
@@ -31,8 +37,8 @@ class State:
 
         # Count the total inversions.
         inversions = 0
-        for i in enumerate(scratch):
-            for j in enumerate(scratch):
+        for i, item in enumerate(scratch):
+            for j in range(len(scratch) - i):
                 if scratch[i+j] < scratch[i]:
                     inversions += 1
 
@@ -81,6 +87,7 @@ class State:
 
         if not is_left:
             moves.append(self.__move_right())
+
         return moves
 
     def __move_up(self):
@@ -169,6 +176,26 @@ class PriorityQueue:
                 return True
 
         return False
+    
+    def get_priority(self, state:State):
+        """Get the priority of a state in the queue. Returns -1 if 
+        the item could not be found."""
+        for (priority, entry_num, target) in self.entries:
+            if target == state:
+                return priority
+
+        return -1
+    
+    def remove(self, state:State):
+        """Remove a state from the queue."""
+        for i, entry in enumerate(self.entries):
+            if entry[2] == state:
+                self.entries.pop(i)
+                break;
+
+        heapq.heapify(self.entries)
+
+
 
     def __str__(self):
         """Returns a string representation of the queue."""
@@ -223,39 +250,73 @@ def solve(puzzle):
 
 def __solve(start_state):
     """Private solver using A* to search through the states."""
-    # TODO: This needs some work to trim down the open list...
-    # Setup
+
+    # Setup lists
     open_list = PriorityQueue()
+    closed_list = {}
+
+    # Add starting node to both the closed and open lists. 
+    # NOTE: The second element of the tuple is to break ties 
+    # in score according to FIFO.
+    # TODO: is this the problem?
     open_list.insert((1, open_list.entry_num, start_state))
-    came_from = {}
 
-    g_score = {}
-    g_score.update({start_state:0})
+    # Set the scores for the first state
+    start_state.g = 0
+    start_state.h = __calc_h(start_state)
+    start_state.f = start_state.h
 
-    f_score = {}
-    f_score.update({start_state: __calc_h(start_state)})
+    start_state.parent = None
 
     while not open_list.is_empty():
+
+        # Get the state with the lowest f score from the open list.
         current = open_list.pop()
 
-        # Check if current is the goal
-        if __calc_h(current) == 0:
-            return __make_path(came_from, current)
+        
+        # Is this child the goal?
+        if current.h == 0:
+            print("FOUND THE GOAL")
+            closed_list.update({current: current.parent})
+            print("open_list length " + str(len(open_list.entries)))
+            return __make_path(closed_list, current)
 
+
+        # Explore the child states of the current state.
+        # Add them to the open list if they are more attractive
         for child in current.get_moves():
-            # Child is one move away
-            child_g_score = g_score.get(current)+1
-            if g_score.get(child) == None or child_g_score < g_score.get(child):
-                # This is the best path
-                came_from.update({child: current})
-                g_score.update({child: child_g_score})
-                f_score.update({child: child_g_score + __calc_h(child)})
 
-                if not open_list.contains(child):
-                    open_list.insert((f_score.get(child),open_list.entry_num, child))
+            # calculate the child's scores 
+            child.g = current.g + 1
+            child.h = __calc_h(child)
+            child.f = child.g + child.h
+            
+            child.parent = current
 
-    print("Error the open list is empty!")
-    return None
+            # Is the child on the closed list?
+            if child in closed_list:
+                continue
+
+            # Is the child on the open list?
+            priority = open_list.get_priority(child)
+            if priority != -1:
+                # Is the priority child better?
+                if priority <= child.f:
+                    # if so, skip to next child
+                    continue
+                else: 
+                    # The child is better
+                    open_list.remove(child)
+                    open_list.insert((child.f, open_list.entry_num, child))
+            else:
+                # The child is not on the open list
+                open_list.insert((child.f, open_list.entry_num, child))
+
+        # Add the explored node to the closed list
+        closed_list.update({current: current.parent})
+
+    print("ERROR: ran the open list dry")
+
 
 def __decode_move(before:State, after:State):
     """Returns the move that was made to go from the before state to the after state."""
@@ -279,11 +340,13 @@ def __decode_move(before:State, after:State):
 def __make_path(came_from, goal):
     """Returns the moves taken to get from the starting state to the
     goal state."""
-    
-    moves = [] 
+   
+    moves = []
     current = goal
 
     while(came_from.get(current) != None):
         moves.insert(0, __decode_move(current, came_from.get(current)))
         current = came_from.get(current)
+
+    print(str(current))
     return moves 
