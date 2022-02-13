@@ -23,7 +23,7 @@ class State:
             self.state = layout
 
     def is_solveable(self):
-        """Returns True if the puzzle is possible to solve.
+        """Returns True if it is possible to solve a puzzle in this state
         False otherwise."""
 
         # Remove the zero
@@ -91,7 +91,7 @@ class State:
         return child
 
     def __move_down(self):
-        """Returns the new state after moving up"""
+        """Returns the new state after moving down"""
         child = State(self.width, self.height, self.state[:])
 
         zero_index = child.state.index(0)
@@ -99,14 +99,14 @@ class State:
         return child
 
     def __move_left(self):
-        """Returns the new state after moving up"""
+        """Returns the new state after moving left"""
         child = State(self.width, self.height, self.state[:])
         zero_index = child.state.index(0)
         child.swap(zero_index,zero_index+1)
         return child
 
     def __move_right(self):
-        """Returns the new state after moving up"""
+        """Returns the new state after moving right"""
         child = State(self.width, self.height, self.state[:])
         zero_index = child.state.index(0)
         child.swap(zero_index,zero_index-1)
@@ -120,6 +120,7 @@ class State:
 
 
     def __str__(self):
+        """Overrides the built-in string method."""
         return str(self.state)
 
     def __eq__(self, other):
@@ -139,7 +140,7 @@ class State:
         return hash(tmp)
 
 class PriorityQueue:
-    """A min priority queue."""
+    """A simple minimum priority queue."""
     def __init__(self):
         self.entries = []
         self.entry_num = 0
@@ -155,13 +156,14 @@ class PriorityQueue:
         heapq.heapify(self.entries)
 
     def pop(self):
-        """Pops the element with the highest priority."""
+        """Pops the element with the most priority. In this case the minimum
+        priority value."""
         item = self.entries.pop(0)
         heapq.heapify(self.entries)
         return item[2]
 
     def contains(self, item):
-        """Returns true if the item is contained in the set"""
+        """Returns True if the `item` is in the queue. False otherwise."""
         for entry in self.entries:
             if entry[2] == item:
                 return True
@@ -169,6 +171,7 @@ class PriorityQueue:
         return False
 
     def __str__(self):
+        """Returns a string representation of the queue."""
         return str(self.entries)
 
 def __calc_h(state:State):
@@ -219,11 +222,8 @@ def solve(puzzle):
     return __solve(start_state)
 
 def __solve(start_state):
-    """Private solver using A* to search through the states.
-
-    Keyword arguments:
-    start_state -- A SOLVABLE State"""
-
+    """Private solver using A* to search through the states."""
+    # TODO: This needs some work to trim down the open list...
     # Setup
     open_list = PriorityQueue()
     open_list.insert((1, open_list.entry_num, start_state))
@@ -258,6 +258,7 @@ def __solve(start_state):
     return None
 
 def __decode_move(before:State, after:State):
+    """Returns the move that was made to go from the before state to the after state."""
     before_zero = before.state.index(0)
     after_zero = after.state.index(0)
 
@@ -286,21 +287,3 @@ def __make_path(came_from, goal):
         moves.insert(0, __decode_move(current, came_from.get(current)))
         current = came_from.get(current)
     return moves 
-
-if __name__ == "__main__":
-    #myState = State(4, 4, [6, 5, 2, 0, 3, 7, 11, 4, 9, 1, 10, 8, 15, 14, 13, 12])
-    myState = State(4, 4, [[1,2,4,3],[5,6,7,8],[9,10,11,12], [13,14,15,0]])
-    print(f'The h: {__calc_h(myState)}')
-
-    """
-    myqueue = Priority_Queue()
-    myqueue.insert((3, 'apple'))
-    myqueue.insert((2, 'pear'))
-    myqueue.insert((5, 'orange'))
-    myqueue.insert((11, 'red'))
-
-    print("list is " + str(myqueue))
-
-    print("popped: "+ str(myqueue.pop()))
-    myqueue.insert((1, "YAYA"))
-    print("list is " + str(myqueue)) """
