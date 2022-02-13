@@ -3,7 +3,7 @@
 Uses the A* search algorithm to solve a given m x n sliding puzzle.
 
 Written by Tyler Weir
-02/09/2022"""
+02/12/2022"""
 
 import heapq
 
@@ -31,8 +31,8 @@ class State:
 
         # Count the total inversions.
         inversions = 0
-        for i in range(len(scratch)):
-            for j in range(len(scratch)-i):
+        for i in enumerate(scratch):
+            for j in enumerate(scratch):
                 if scratch[i+j] < scratch[i]:
                     inversions += 1
 
@@ -93,7 +93,7 @@ class State:
     def __move_down(self):
         """Returns the new state after moving up"""
         child = State(self.width, self.height, self.state[:])
-        
+
         zero_index = child.state.index(0)
         child.swap(zero_index,zero_index-child.width)
         return child
@@ -138,7 +138,7 @@ class State:
         tmp = (* self.state, self.width, self.height)
         return hash(tmp)
 
-class Priority_Queue:
+class PriorityQueue:
     """A min priority queue."""
     def __init__(self):
         self.entries = []
@@ -171,8 +171,6 @@ class Priority_Queue:
     def __str__(self):
         return str(self.entries)
 
-
-
 def __calc_h(state:State):
     """Returns the admissible heuristic of the state.
 
@@ -191,7 +189,6 @@ def __calc_h(state:State):
 
         index = state.state.index(i)
 
-        # TODO: verify that these are right
         # First find number of vertical moves
         row = index // state.width
         goal_row = (i-1) // state.width
@@ -202,9 +199,8 @@ def __calc_h(state:State):
 
         sum_moves += abs(goal_row - row)
         sum_moves += abs(goal_column - column)
-        
-    return sum_moves
 
+    return sum_moves
 
 def solve(puzzle):
     """Solve a sliding puzzle.
@@ -229,7 +225,7 @@ def __solve(start_state):
     start_state -- A SOLVABLE State"""
 
     # Setup
-    open_list = Priority_Queue()
+    open_list = PriorityQueue()
     open_list.insert((1, open_list.entry_num, start_state))
     came_from = {}
 
