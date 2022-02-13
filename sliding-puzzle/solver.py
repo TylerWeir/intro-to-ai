@@ -163,7 +163,7 @@ class Priority_Queue:
     def contains(self, item):
         """Returns true if the item is contained in the set"""
         for entry in self.entries:
-            if entry[1] == item:
+            if entry[2] == item:
                 return True
 
         return False
@@ -217,7 +217,6 @@ def solve(puzzle):
     defined in the state class.
     """
     print(puzzle)
-    return None
     start_state = State(len(puzzle[0]), len(puzzle), puzzle)
 
     if not start_state.is_solveable():
