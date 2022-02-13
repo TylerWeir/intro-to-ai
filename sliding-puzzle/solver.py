@@ -11,6 +11,11 @@ class State:
     """Represents a state of a sliding puzzle."""
 
     def __init__(self, width, height, layout):
+        """Creates a new State.
+        width: The integer width of the puzzle.
+        height: The integer height of the puzzle.
+        layout: Either a 1D or 2D list describing the layout of the
+                puzzle."""
         self.width = width
         self.height = height
 
@@ -29,15 +34,15 @@ class State:
             self.state = layout
 
     def is_solveable(self):
-        """Returns True if it is possible to solve a puzzle in this state
-        False otherwise."""
+        """Returns True if it is possible to solve a puzzle in this
+        state, False otherwise."""
 
         # Remove the zero
         scratch = [x for x in self.state if x != 0]
 
         # Count the total inversions.
         inversions = 0
-        for i, item in enumerate(scratch):
+        for i, _ in enumerate(scratch):
             for j in range(len(scratch) - i):
                 if scratch[i+j] < scratch[i]:
                     inversions += 1
@@ -91,14 +96,14 @@ class State:
         return moves
 
     def __move_up(self):
-        """Returns the new state after moving up"""
+        """Returns the new state after moving up."""
         child = State(self.width, self.height, self.state[:])
         zero_index = child.state.index(0)
         child.swap(zero_index,zero_index+child.width)
         return child
 
     def __move_down(self):
-        """Returns the new state after moving down"""
+        """Returns the new state after moving down."""
         child = State(self.width, self.height, self.state[:])
 
         zero_index = child.state.index(0)
@@ -106,14 +111,14 @@ class State:
         return child
 
     def __move_left(self):
-        """Returns the new state after moving left"""
+        """Returns the new state after moving left."""
         child = State(self.width, self.height, self.state[:])
         zero_index = child.state.index(0)
         child.swap(zero_index,zero_index+1)
         return child
 
     def __move_right(self):
-        """Returns the new state after moving right"""
+        """Returns the new state after moving right."""
         child = State(self.width, self.height, self.state[:])
         zero_index = child.state.index(0)
         child.swap(zero_index,zero_index-1)
@@ -143,41 +148,51 @@ class State:
 
     def __hash__(self):
         """Overrides the built-in hash method."""
+        #TODO: Can I make this faster? Maybe just store state as 
+        # a tuple already?
         tmp = (* self.state, self.width, self.height)
         return hash(tmp)
 
 class PriorityQueue:
-    """A simple minimum priority queue."""
+    """A minimum priority queue to act as the open list in A*. It is
+    dictionary backed for lighing fast methods."""
+
     def __init__(self):
+        """Creates a new empty PriorityQueue."""
         self.priorities = {}
         self.size = 0
         self.entries = []
         self.entry_num = 0
 
     def is_empty(self):
-        """Returns True if the queue is empty."""
+        """Returns True if the queue is empty, False otherwise.
+        Time Complexity: O(1)"""
         return self.size == 0
 
     def get_size(self):
-        """Returns the size of the priority queue."""
+        """Returns the size of the priority queue.
+        Time Complexity: O(1)"""
         return self.size
 
-    def insert(self, entry):
-        """Add and element to the pq."""
+    def insert(self, priority, state):
+        """Add and element to the priority queue.
+        Time Complexity: O(n)"""
+
+        # Update counters
         self.entry_num += 1
         self.size += 1
-        self.priorities.update({entry[2]:entry[0]})
-        self.entries.append(entry)
+
+        # Update list and dictionary
+        self.priorities.update({state:priority})
+        self.entries.append((priority, self.entry_num, state))
         heapq.heapify(self.entries)
 
     def pop(self):
-        """Pops the element with the most priority. In this case the minimum
-        priority value."""
+        """Pops the element with the least f score.
+        Time Complexity: O(n)"""
 
-        # Clear from dictionary.
+        # Clear from list and dictionary.
         self.priorities.pop(self.entries[0][2])
-
-        # Clear from list.
         item = self.entries.pop(0)
         self.size -= 1
 
@@ -186,16 +201,19 @@ class PriorityQueue:
         return item[2]
 
     def contains(self, item):
-        """Returns True if the `item` is in the queue. False otherwise."""
+        """Returns True if the item is in the queue, False otherwise.
+        Time Complexity: O(1)"""
         return item in self.priorities
 
     def get_priority(self, state:State):
         """Get the priority of a state in the queue. Returns -1 if
-        the item could not be found."""
+        the item could not be found.
+        Time Complexity: O(1)"""
         return self.priorities.get(state, -1)
-    
+
     def remove(self, state:State):
-        """Remove a state from the queue."""
+        """Remove a state from the queue.
+        Time Complexitu: O(n)"""
         for i, entry in enumerate(self.entries):
             if entry[2] == state:
 
@@ -205,8 +223,6 @@ class PriorityQueue:
                 break
 
         heapq.heapify(self.entries)
-
-
 
     def __str__(self):
         """Returns a string representation of the queue."""
@@ -266,11 +282,8 @@ def __solve(start_state):
     open_list = PriorityQueue()
     closed_list = {}
 
-    # Add starting node to both the closed and open lists.
-    # NOTE: The second element of the tuple is to break ties
-    # in score according to FIFO.
-    # TODO: is this the problem?
-    open_list.insert((1, open_list.entry_num, start_state))
+    # Add starting node to the open list.
+    open_list.insert(1, start_state)
 
     # Set the scores for the first state
     start_state.g = 0
@@ -284,24 +297,21 @@ def __solve(start_state):
         # Get the state with the lowest f score from the open list.
         current = open_list.pop()
 
-        
-        # Is this child the goal?
+        # Is this state the goal?
         if current.h == 0:
-            print("FOUND THE GOAL")
             closed_list.update({current: current.parent})
-            print("open_list length " + str(len(open_list.entries)))
             return __make_path(closed_list, current)
 
-
         # Explore the child states of the current state.
-        # Add them to the open list if they are more attractive
+        # Add them to the open list if they aren't already
+        # there or if they score better.
         for child in current.get_moves():
 
-            # calculate the child's scores 
+            # calculate the child's scores
             child.g = current.g + 1
             child.h = __calc_h(child)
             child.f = child.g + child.h
-            
+
             child.parent = current
 
             # Is the child on the closed list?
@@ -313,24 +323,23 @@ def __solve(start_state):
             if priority != -1:
                 # Is the priority child better?
                 if priority <= child.f:
-                    # if so, skip to next child
                     continue
-                else: 
-                    # The child is better
-                    open_list.remove(child)
-                    open_list.insert((child.f, open_list.entry_num, child))
+                # This child is better
+                open_list.remove(child)
+                open_list.insert(child.f, child)
             else:
                 # The child is not on the open list
-                open_list.insert((child.f, open_list.entry_num, child))
+                open_list.insert(child.f, child)
 
         # Add the explored node to the closed list
         closed_list.update({current: current.parent})
 
-    print("ERROR: ran the open list dry")
+    print("ERROR: ran the open list dry.")
 
 
 def __decode_move(before:State, after:State):
-    """Returns the move that was made to go from the before state to the after state."""
+    """Returns the move that was made to go from the before state
+    to the after state."""
     before_zero = before.state.index(0)
     after_zero = after.state.index(0)
 
@@ -338,26 +347,30 @@ def __decode_move(before:State, after:State):
 
     if diff == before.width:
         return 'D'
-    elif diff == -before.width:
+    if diff == -before.width:
         return 'U'
-    elif diff == 1:
+    if diff == 1:
         return 'R'
-    elif diff == -1:
+    if diff == -1:
         return 'L'
-    else:
-        print("ERROR!")
+
+    print("ERROR making path")
+    return None
 
 
 def __make_path(came_from, goal):
     """Returns the moves taken to get from the starting state to the
     goal state."""
-   
+
     moves = []
     current = goal
+    parent = came_from.get(current)
 
-    while(came_from.get(current) != None):
-        moves.insert(0, __decode_move(current, came_from.get(current)))
+    # Keeping interating through parents until we reach the
+    # starting state.
+    while parent:
+        moves.insert(0, __decode_move(current, parent))
         current = came_from.get(current)
+        parent = came_from.get(current)
 
-    print(str(current))
-    return moves 
+    return moves
