@@ -216,7 +216,6 @@ def solve(puzzle):
 
     defined in the state class.
     """
-    print(puzzle)
     start_state = State(len(puzzle[0]), len(puzzle), puzzle)
 
     if not start_state.is_solveable():
@@ -241,14 +240,10 @@ def __solve(start_state):
     f_score.update({start_state: __calc_h(start_state)})
 
     while not open_list.is_empty():
-        print(len(open_list.entries))
         current = open_list.pop()
-        print("popped")
-        print(len(open_list.entries))
 
         # Check if current is the goal
         if __calc_h(current) == 0:
-            print("found the goal state")
             return __make_path(came_from, current)
 
         for child in current.get_moves():
@@ -266,10 +261,35 @@ def __solve(start_state):
     print("Error the open list is empty!")
     return None
 
+def __decode_move(before:State, after:State):
+    before_zero = before.state.index(0)
+    after_zero = after.state.index(0)
+
+    diff = after_zero - before_zero
+
+    if diff == before.width:
+        return 'D'
+    elif diff == -before.width:
+        return 'U'
+    elif diff == 1:
+        return 'R'
+    elif diff == -1:
+        return 'L'
+    else:
+        print("ERROR!")
+
+
 def __make_path(came_from, goal):
     """Returns the moves taken to get from the starting state to the
     goal state."""
-    return ['U', 'D']
+    
+    moves = [] 
+    current = goal
+
+    while(came_from.get(current) != None):
+        moves.insert(0, __decode_move(current, came_from.get(current)))
+        current = came_from.get(current)
+    return moves 
 
 if __name__ == "__main__":
     #myState = State(4, 4, [6, 5, 2, 0, 3, 7, 11, 4, 9, 1, 10, 8, 15, 14, 13, 12])
