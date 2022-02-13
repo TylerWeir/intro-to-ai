@@ -149,49 +149,60 @@ class State:
 class PriorityQueue:
     """A simple minimum priority queue."""
     def __init__(self):
+        self.priorities = {}
+        self.size = 0
         self.entries = []
         self.entry_num = 0
 
     def is_empty(self):
         """Returns True if the queue is empty."""
-        return len(self.entries) == 0
+        return self.size == 0
+
+    def get_size(self):
+        """Returns the size of the priority queue."""
+        return self.size
 
     def insert(self, entry):
         """Add and element to the pq."""
         self.entry_num += 1
+        self.size += 1
+        self.priorities.update({entry[2]:entry[0]})
         self.entries.append(entry)
         heapq.heapify(self.entries)
 
     def pop(self):
         """Pops the element with the most priority. In this case the minimum
         priority value."""
+
+        # Clear from dictionary.
+        self.priorities.pop(self.entries[0][2])
+
+        # Clear from list.
         item = self.entries.pop(0)
+        self.size -= 1
+
+        # Make the heap again.
         heapq.heapify(self.entries)
         return item[2]
 
     def contains(self, item):
         """Returns True if the `item` is in the queue. False otherwise."""
-        for entry in self.entries:
-            if entry[2] == item:
-                return True
+        return item in self.priorities
 
-        return False
-    
     def get_priority(self, state:State):
-        """Get the priority of a state in the queue. Returns -1 if 
+        """Get the priority of a state in the queue. Returns -1 if
         the item could not be found."""
-        for (priority, entry_num, target) in self.entries:
-            if target == state:
-                return priority
-
-        return -1
+        return self.priorities.get(state, -1)
     
     def remove(self, state:State):
         """Remove a state from the queue."""
         for i, entry in enumerate(self.entries):
             if entry[2] == state:
+
+                self.size -= 1
+                self.priorities.pop(state)
                 self.entries.pop(i)
-                break;
+                break
 
         heapq.heapify(self.entries)
 
@@ -255,8 +266,8 @@ def __solve(start_state):
     open_list = PriorityQueue()
     closed_list = {}
 
-    # Add starting node to both the closed and open lists. 
-    # NOTE: The second element of the tuple is to break ties 
+    # Add starting node to both the closed and open lists.
+    # NOTE: The second element of the tuple is to break ties
     # in score according to FIFO.
     # TODO: is this the problem?
     open_list.insert((1, open_list.entry_num, start_state))
