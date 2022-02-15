@@ -155,81 +155,6 @@ class State:
         tmp = (* self.state, self.width, self.height)
         return hash(tmp)
 
-class Priority_Queue:
-    """A minimum priority queue to act as the open list in A*. It is
-    dictionary backed for lighing fast methods."""
-
-    def __init__(self):
-        """Creates a new empty PriorityQueue."""
-        self.priorities = {}
-        self.size = 0
-        self.entries = []
-        self.entry_num = 0
-
-    def is_empty(self):
-        """Returns True if the queue is empty, False otherwise.
-        Time Complexity: O(1)"""
-        return self.size == 0
-
-    def get_size(self):
-        """Returns the size of the priority queue.
-        Time Complexity: O(1)"""
-        return self.size
-
-    def insert(self, priority, state):
-        """Add and element to the priority queue.
-        Time Complexity: O(n)"""
-
-        # Update counters
-        self.entry_num += 1
-        self.size += 1
-
-        # Update list and dictionary
-        self.priorities.update({state:priority})
-        self.entries.append((priority, self.entry_num, state))
-        heapq.heapify(self.entries)
-
-    def pop(self):
-        """Pops the element with the least f score.
-        Time Complexity: O(n)"""
-
-        # Clear from list and dictionary.
-        self.priorities.pop(self.entries[0][2])
-        item = self.entries.pop(0)
-        self.size -= 1
-
-        # Make the heap again.
-        heapq.heapify(self.entries)
-        return item[2]
-
-    def contains(self, item):
-        """Returns True if the item is in the queue, False otherwise.
-        Time Complexity: O(1)"""
-        return item in self.priorities
-
-    def get_priority(self, state:State):
-        """Get the priority of a state in the queue. Returns -1 if
-        the item could not be found.
-        Time Complexity: O(1)"""
-        return self.priorities.get(state, -1)
-
-    def remove(self, state:State):
-        """Remove a state from the queue.
-        Time Complexitu: O(n)"""
-        for i, entry in enumerate(self.entries):
-            if entry[2] == state:
-
-                self.size -= 1
-                self.priorities.pop(state)
-                self.entries.pop(i)
-                break
-
-        heapq.heapify(self.entries)
-
-    def __str__(self):
-        """Returns a string representation of the queue."""
-        return str(self.entries)
-
 def __calc_h(state:State):
     """Returns the admissible heuristic of the state.
 
@@ -305,10 +230,6 @@ def __solve(start_state):
         # Get the state with the lowest f score from the open list.
         current = open_list.get()[2]
 
-#        # is it in the closed_list
-#        if current in closed_list:
-#            continue
-
         # Explore the child states of the current state.
         # Add them to the open list if they aren't already
         # there or if they score better.
@@ -320,7 +241,6 @@ def __solve(start_state):
             if child.h == 0:
                 closed_list.update({current: current.parent})
                 closed_list.update({child: current})
-                print(len(closed_list))
                 return __make_path(closed_list, child)
 
             if child in closed_list:
@@ -346,7 +266,6 @@ def __solve(start_state):
         closed_list.update({current: current.parent})
 
     print("ERROR: ran the open list dry.")
-
 
 def __decode_move(before:State, after:State):
     """Returns the move that was made to go from the before state
@@ -385,3 +304,81 @@ def __make_path(came_from, goal):
         parent = came_from.get(current)
 
     return moves
+
+# My speedy priority queue turned out to be slow... :(
+# I just opted to use the built in rather than try to debug this one
+#
+#class Priority_Queue:
+#    """A minimum priority queue to act as the open list in A*. It is
+#    dictionary backed for lighing fast methods."""
+#
+#    def __init__(self):
+#        """Creates a new empty PriorityQueue."""
+#        self.priorities = {}
+#        self.size = 0
+#        self.entries = []
+#        self.entry_num = 0
+#
+#    def is_empty(self):
+#        """Returns True if the queue is empty, False otherwise.
+#        Time Complexity: O(1)"""
+#        return self.size == 0
+#
+#    def get_size(self):
+#        """Returns the size of the priority queue.
+#        Time Complexity: O(1)"""
+#        return self.size
+#
+#    def insert(self, priority, state):
+#        """Add and element to the priority queue.
+#        Time Complexity: O(n)"""
+#
+#        # Update counters
+#        self.entry_num += 1
+#        self.size += 1
+#
+#        # Update list and dictionary
+#        self.priorities.update({state:priority})
+#        self.entries.append((priority, self.entry_num, state))
+#        heapq.heapify(self.entries)
+#
+#    def pop(self):
+#        """Pops the element with the least f score.
+#        Time Complexity: O(n)"""
+# 
+#        # Clear from list and dictionary.
+#        self.priorities.pop(self.entries[0][2])
+#        item = self.entries.pop(0)
+#        self.size -= 1
+#
+#        # Make the heap again.
+#        heapq.heapify(self.entries)
+#        return item[2]
+#
+#    def contains(self, item):
+#        """Returns True if the item is in the queue, False otherwise.
+#        Time Complexity: O(1)"""
+#        return item in self.priorities
+#
+#    def get_priority(self, state:State):
+#        """Get the priority of a state in the queue. Returns -1 if
+#        the item could not be found.
+#        Time Complexity: O(1)"""
+#        return self.priorities.get(state, -1)
+#
+#    def remove(self, state:State):
+#        """Remove a state from the queue.
+#        Time Complexitu: O(n)"""
+#        for i, entry in enumerate(self.entries):
+#            if entry[2] == state:
+#
+#                self.size -= 1
+#                self.priorities.pop(state)
+#                self.entries.pop(i)
+#                break
+#
+#        heapq.heapify(self.entries)
+#
+#    def __str__(self):
+#        """Returns a string representation of the queue."""
+#        return str(self.entries)
