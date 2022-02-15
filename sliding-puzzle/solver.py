@@ -1,4 +1,4 @@
-"""solver.py
+"""solverpy
 
 Uses the A* search algorithm to solve a given m x n sliding puzzle.
 
@@ -6,6 +6,8 @@ Written by Tyler Weir
 02/12/2022"""
 
 import heapq
+import sys
+from queue import PriorityQueue
 
 class State:
     """Represents a state of a sliding puzzle."""
@@ -153,7 +155,7 @@ class State:
         tmp = (* self.state, self.width, self.height)
         return hash(tmp)
 
-class PriorityQueue:
+class Priority_Queue:
     """A minimum priority queue to act as the open list in A*. It is
     dictionary backed for lighing fast methods."""
 
@@ -243,7 +245,7 @@ def __calc_h(state:State):
     sum_moves = 0
 
     for i in range(1, state.width * state.height):
-
+        
         index = state.state.index(i)
 
         # First find number of vertical moves
@@ -270,6 +272,7 @@ def solve(puzzle):
     defined in the state class.
     """
     start_state = State(len(puzzle[0]), len(puzzle), puzzle)
+    
 
     if not start_state.is_solveable():
         return None
@@ -277,61 +280,69 @@ def solve(puzzle):
 
 def __solve(start_state):
     """Private solver using A* to search through the states."""
+    entry_num = 0
 
     # Setup lists
     open_list = PriorityQueue()
     closed_list = {}
+    f = {}
 
     # Add starting node to the open list.
-    open_list.insert(1, start_state)
+    #open_list.insert(1, start_state)
+    open_list.put((1, entry_num, start_state))
+    entry_num += 1
 
     # Set the scores for the first state
     start_state.g = 0
     start_state.h = __calc_h(start_state)
     start_state.f = start_state.h
+    f.update({start_state: f})
 
     start_state.parent = None
 
-    while not open_list.is_empty():
+    while not open_list.empty():
 
         # Get the state with the lowest f score from the open list.
-        current = open_list.pop()
+        current = open_list.get()[2]
 
-        # Is this state the goal?
-        if current.h == 0:
-            closed_list.update({current: current.parent})
-            return __make_path(closed_list, current)
+#        # is it in the closed_list
+#        if current in closed_list:
+#            continue
 
         # Explore the child states of the current state.
         # Add them to the open list if they aren't already
         # there or if they score better.
         for child in current.get_moves():
 
-            # calculate the child's scores
-            child.g = current.g + 1
             child.h = __calc_h(child)
-            child.f = child.g + child.h
 
-            child.parent = current
+            # Is this state the goal?
+            if child.h == 0:
+                closed_list.update({current: current.parent})
+                closed_list.update({child: current})
+                print(len(closed_list))
+                return __make_path(closed_list, child)
 
-            # Is the child on the closed list?
             if child in closed_list:
                 continue
 
-            # Is the child on the open list?
-            priority = open_list.get_priority(child)
-            if priority != -1:
-                # Is the priority child better?
-                if priority <= child.f:
-                    continue
-                # This child is better
-                open_list.remove(child)
-                open_list.insert(child.f, child)
-            else:
-                # The child is not on the open list
-                open_list.insert(child.f, child)
+            # calculate the child's scores
+            child.g = current.g + 1
+            child.f = child.g + child.h
+            child.parent = current
+
+            # have we seen better?
+            best_score = f.get(child, sys.maxsize)
+            if best_score <= child.f:
+                continue
+
+            #Otherwise this is the best
+            f.update({child: child.f})
+            open_list.put((child.f, entry_num, child))
+            entry_num += 1
 
         # Add the explored node to the closed list
+        f.update({current: current.f})
         closed_list.update({current: current.parent})
 
     print("ERROR: ran the open list dry.")
