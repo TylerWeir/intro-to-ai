@@ -5,9 +5,18 @@ Uses the A* search algorithm to solve a given m x n sliding puzzle.
 Written by Tyler Weir
 02/12/2022"""
 
-import heapq
 import sys
+import heapq
+import threading
 from queue import PriorityQueue
+
+# Global vars for the thread to accesss
+mutex = threading.Lock()
+claimed = {}
+closed_list_1 = {}
+closed_list_2 = {}
+finished = False
+connection = None
 
 class State:
     """Represents a state of a sliding puzzle."""
@@ -33,7 +42,7 @@ class State:
             # geeksforgeeks.com.
             self.state = [j for sub in layout for j in sub]
         else:
-            self.state = layout
+            self.state = layout[:]
 
     def is_solveable(self):
         """Returns True if it is possible to solve a puzzle in this
@@ -155,82 +164,7 @@ class State:
         tmp = (* self.state, self.width, self.height)
         return hash(tmp)
 
-class Priority_Queue:
-    """A minimum priority queue to act as the open list in A*. It is
-    dictionary backed for lighing fast methods."""
-
-    def __init__(self):
-        """Creates a new empty PriorityQueue."""
-        self.priorities = {}
-        self.size = 0
-        self.entries = []
-        self.entry_num = 0
-
-    def is_empty(self):
-        """Returns True if the queue is empty, False otherwise.
-        Time Complexity: O(1)"""
-        return self.size == 0
-
-    def get_size(self):
-        """Returns the size of the priority queue.
-        Time Complexity: O(1)"""
-        return self.size
-
-    def insert(self, priority, state):
-        """Add and element to the priority queue.
-        Time Complexity: O(n)"""
-
-        # Update counters
-        self.entry_num += 1
-        self.size += 1
-
-        # Update list and dictionary
-        self.priorities.update({state:priority})
-        self.entries.append((priority, self.entry_num, state))
-        heapq.heapify(self.entries)
-
-    def pop(self):
-        """Pops the element with the least f score.
-        Time Complexity: O(n)"""
-
-        # Clear from list and dictionary.
-        self.priorities.pop(self.entries[0][2])
-        item = self.entries.pop(0)
-        self.size -= 1
-
-        # Make the heap again.
-        heapq.heapify(self.entries)
-        return item[2]
-
-    def contains(self, item):
-        """Returns True if the item is in the queue, False otherwise.
-        Time Complexity: O(1)"""
-        return item in self.priorities
-
-    def get_priority(self, state:State):
-        """Get the priority of a state in the queue. Returns -1 if
-        the item could not be found.
-        Time Complexity: O(1)"""
-        return self.priorities.get(state, -1)
-
-    def remove(self, state:State):
-        """Remove a state from the queue.
-        Time Complexitu: O(n)"""
-        for i, entry in enumerate(self.entries):
-            if entry[2] == state:
-
-                self.size -= 1
-                self.priorities.pop(state)
-                self.entries.pop(i)
-                break
-
-        heapq.heapify(self.entries)
-
-    def __str__(self):
-        """Returns a string representation of the queue."""
-        return str(self.entries)
-
-def __calc_h(state:State):
+def __calc_h(state_1:State, state_2:State):
     """Returns the admissible heuristic of the state.
 
     Heuristic is calculated by relaxing the constraints of the
@@ -243,21 +177,25 @@ def __calc_h(state:State):
     """
 
     sum_moves = 0
+    
+    width = state_1.width
+    height = state_1.height
 
-    for i in range(1, state.width * state.height):
+    for i in range(1, width * height):
         
-        index = state.state.index(i)
+        index_1 = state_1.state.index(i)
+        index_2 = state_2.state.index(i)
 
         # First find number of vertical moves
-        row = index // state.width
-        goal_row = (i-1) // state.width
+        row_1 = index_1 // width
+        row_2 = index_2 // width
 
         # Then find number of horizontal moves
-        column = index % state.width
-        goal_column = (i-1) % state.width
+        column_1 = index_1 % width
+        column_2 = index_2 % width
 
-        sum_moves += abs(goal_row - row)
-        sum_moves += abs(goal_column - column)
+        sum_moves += abs(row_1 - row_2)
+        sum_moves += abs(column_1 - column_2)
 
     return sum_moves
 
@@ -271,63 +209,132 @@ def solve(puzzle):
 
     defined in the state class.
     """
-    start_state = State(len(puzzle[0]), len(puzzle), puzzle)
+    width = len(puzzle[0])
+    height = len(puzzle)
+
+    solved = list(range(1, width*height))
+    solved.append(0)
     
+    # p1 is working from start to solved
+    p1_start_state = State(width, height, puzzle)
+    p1_goal_state = State(width, height, solved)
 
-    if not start_state.is_solveable():
-        return None
-    return __solve(start_state)
+    # p2 is working from solved to start
+    p2_start_state = State(width, height, solved)
+    p2_goal_state = State(width, height, puzzle)
 
-def __solve(start_state):
-    """Private solver using A* to search through the states."""
-    entry_num = 0
+    p1 = threading.Thread(target=p1_solve, args=(p1_start_state, p1_goal_state))
+    p2 = threading.Thread(target=p2_solve, args=(p2_start_state, p2_goal_state))
 
-    # Setup lists
+    # Start the threads
+    p1.start()
+    p2.start()
+    print("Started threads")
+
+    # Wait for the threads to come back
+    p1.join()
+    p2.join()
+    print("Threads returned")
+
+    global closed_list_1
+    global closed_list_2
+    global connection
+
+    print(f"connection is in cl1 {connection in closed_list_1}")
+    print(f"connection is in cl2 {connection in closed_list_2}")
+
+    return __make_path(p1_start_state, p1_goal_state)
+
+def is_claimed_by(state, thread_num):
+    """Checks if a thread has put a state on it's closed_list."""
+    global mutex
+    global claimed
+
+    mutex.acquire()
+
+    if claimed.get(state,-1) == thread_num:
+        mutex.release()
+        return True
+
+    mutex.release()
+    return False
+
+def add_if_missing(state, thread_num, opposite_thread):
+    """Adds a state to the public closed_list record. Returns True
+    if successfully added, False otherwise.
+
+    thread_num - The identity of the thread we are looking out for."""
+    global mutex
+    global claimed
+
+    mutex.acquire()
+
+    if claimed.get(state, -1) == opposite_thread:
+        mutex.release()
+        return False
+
+    claimed.update({state : thread_num})
+    mutex.release()
+    return True
+
+def p1_solve(start_state, goal_state):
+    """The solver to be used by p1."""
+
+    # Access the global vars
+    global finished
+    global discovered
+    global connection
+    global closed_list_1
+
+    # Setup the lists
     open_list = PriorityQueue()
-    closed_list = {}
+    entrynum = 1
+    closed_list_1 = {}
     f = {}
 
-    # Add starting node to the open list.
-    #open_list.insert(1, start_state)
-    open_list.put((1, entry_num, start_state))
-    entry_num += 1
-
-    # Set the scores for the first state
+    # Get the scores for the start state
     start_state.g = 0
-    start_state.h = __calc_h(start_state)
+    start_state.h = __calc_h(start_state, goal_state)
     start_state.f = start_state.h
-    f.update({start_state: f})
 
     start_state.parent = None
 
-    while not open_list.empty():
+    # Add start state to the openlist.
+    open_list.put((start_state.f, entrynum, start_state))
+    entrynum += 1
 
-        # Get the state with the lowest f score from the open list.
+    # Enter the search
+    while not finished:
+        
+        # Get the next best looking state
         current = open_list.get()[2]
 
-#        # is it in the closed_list
-#        if current in closed_list:
-#            continue
+        # Check if this state is on the closed list
+        if current in closed_list_1:
+            continue
 
-        # Explore the child states of the current state.
-        # Add them to the open list if they aren't already
-        # there or if they score better.
+        # Check if this state has been added to the other
+        # thread's closed list
+        if is_claimed_by(current, 2):
+            # This is our connection!
+            closed_list_1.update({current: current.parent})
+            finished = True
+            print(f"connection is {current}")
+            if connection == None:
+                connection = current
+            return
+
+        # Explore the child states of the current. Add them to the
+        # open_list if they are new or good, otherwise skip them.
         for child in current.get_moves():
 
-            child.h = __calc_h(child)
-
-            # Is this state the goal?
-            if child.h == 0:
-                closed_list.update({current: current.parent})
-                closed_list.update({child: current})
-                print(len(closed_list))
-                return __make_path(closed_list, child)
-
-            if child in closed_list:
+            # Make sure we need this one
+            if child in closed_list_1:
                 continue
 
             # calculate the child's scores
             child.g = current.g + 1
+            child.h = __calc_h(child, goal_state)
             child.f = child.g + child.h
             child.parent = current
 
@@ -338,15 +345,109 @@ def __solve(start_state):
 
             #Otherwise this is the best
             f.update({child: child.f})
-            open_list.put((child.f, entry_num, child))
-            entry_num += 1
+            open_list.put((child.f, entrynum, child))
+            entrynum += 1
 
-        # Add the explored node to the closed list
+        # Add the explored node to the public closed list
+        if not add_if_missing(current, 1, 2):
+            # Adding failed!
+            # That means this is a connection.
+            finished = True
+            closed_list_1.update({current: current.parent})
+            print(f"connection is {current}")
+            if connection == None:
+                connection=current
+            return
+
+        # Otherwise continue as usual
         f.update({current: current.f})
-        closed_list.update({current: current.parent})
+        closed_list_1.update({current: current.parent})
 
-    print("ERROR: ran the open list dry.")
+def p2_solve(start_state, goal_state):
+    """The solver to be used by p2."""
 
+    # Access the global vars
+    global finished
+    global discovered
+    global connection
+    global closed_list_2
+
+    # Setup the lists
+    open_list = PriorityQueue()
+    entrynum = 0
+    closed_list_2 = {}
+    f = {}
+
+    # Get the scores for the start state
+    start_state.g = 0
+    start_state.h = __calc_h(start_state, goal_state)
+    start_state.f = start_state.h
+
+    start_state.parent = None
+
+    # Add start state to the openlist.
+    open_list.put((start_state.f, entrynum, start_state))
+    entrynum += 1
+
+    # Enter the search
+    while not finished:
+        
+        # Get the next best looking state
+        current = open_list.get()[2]
+
+        # Check if this state is on the closed list
+        if current in closed_list_2:
+            continue
+
+        # Check if this state has been added to the other
+        # thread's closed list
+        if is_claimed_by(current, 1):
+            # This is our connection!
+            closed_list_2.update({current: current.parent})
+            finished = True
+            print(f"connection is {current}")
+            if connection == None:
+                connection = current
+            return
+
+        # Explore the child states of the current. Add them to the
+        # open_list if they are new or good, otherwise skip them.
+        for child in current.get_moves():
+
+            # Make sure we need this one
+            if child in closed_list_2:
+                continue
+
+            # calculate the child's scores
+            child.g = current.g + 1
+            child.h = __calc_h(child, goal_state)
+            child.f = child.g + child.h
+            child.parent = current
+
+            # have we seen better?
+            best_score = f.get(child, sys.maxsize)
+            if best_score <= child.f:
+                continue
+
+            #Otherwise this is the best
+            f.update({child: child.f})
+            open_list.put((child.f, entrynum, child))
+            entrynum+=1
+
+        # Add the explored node to the public closed list
+        if not add_if_missing(current, 2, 1):
+            # Adding failed!
+            # That means this is a connection.
+            finished = True
+            closed_list_2.update({current: current.parent})
+            print(f"connection is {current}")
+            if connection == None:
+                connection = current
+            return
+
+        # Otherwise continue as usual
+        f.update({current: current.f})
+        closed_list_2.update({current: current.parent})
 
 def __decode_move(before:State, after:State):
     """Returns the move that was made to go from the before state
@@ -369,19 +470,34 @@ def __decode_move(before:State, after:State):
     return None
 
 
-def __make_path(came_from, goal):
+def __make_path(starte_state, goal_state):
     """Returns the moves taken to get from the starting state to the
     goal state."""
 
+    global connection
+    global closed_list_1
+    global closed_list_2
+
     moves = []
-    current = goal
-    parent = came_from.get(current)
+    current = connection
+
+    parent = closed_list_1.get(current)
 
     # Keeping interating through parents until we reach the
     # starting state.
     while parent:
         moves.insert(0, __decode_move(current, parent))
-        current = came_from.get(current)
-        parent = came_from.get(current)
+        current = closed_list_1.get(current)
+        parent = closed_list_1.get(current)
+
+    current = connection
+    parent = closed_list_2.get(current)
+
+    # Keeping interating through parents until we reach the
+    # starting state.
+    while parent:
+        moves.append(__decode_move(parent, current))
+        current = closed_list_2.get(current)
+        parent = closed_list_2.get(current)
 
     return moves
