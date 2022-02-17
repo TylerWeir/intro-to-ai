@@ -320,7 +320,7 @@ def p1_solve(start_state, goal_state):
             closed_list_1.update({current: current.parent})
             finished = True
             print(f"connection is {current}")
-            if connection == None:
+            if connection is None:
                 connection = current
             return
 
@@ -355,7 +355,7 @@ def p1_solve(start_state, goal_state):
             finished = True
             closed_list_1.update({current: current.parent})
             print(f"connection is {current}")
-            if connection == None:
+            if connection is None:
                 connection=current
             return
 
@@ -391,7 +391,7 @@ def p2_solve(start_state, goal_state):
 
     # Enter the search
     while not finished:
-        
+
         # Get the next best looking state
         current = open_list.get()[2]
 
@@ -406,7 +406,7 @@ def p2_solve(start_state, goal_state):
             closed_list_2.update({current: current.parent})
             finished = True
             print(f"connection is {current}")
-            if connection == None:
+            if connection is None:
                 connection = current
             return
 
@@ -441,7 +441,7 @@ def p2_solve(start_state, goal_state):
             finished = True
             closed_list_2.update({current: current.parent})
             print(f"connection is {current}")
-            if connection == None:
+            if connection is None:
                 connection = current
             return
 
