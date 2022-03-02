@@ -95,7 +95,7 @@ if do_graphics:
                 player_color_tuples = (None, self._make_color_tuple(player_colors[0]), self._make_color_tuple(player_colors[1]))
 
             self.color_strs = (None, App._make_color_string(player_color_tuples[1]), App._make_color_string(player_color_tuples[2]))
-            self.dark_strs = (None, App._make_color_string(App._darken(player_color_tuples[1])), App._ake_color_string(App._darken(player_color_tuples[2])))
+            self.dark_strs = (None, App._make_color_string(App._darken(player_color_tuples[1])), App._make_color_string(App._darken(player_color_tuples[2])))
             self.light_strs = (None, App._make_color_string(App._lighten(player_color_tuples[1])), App._make_color_string(App._lighten(player_color_tuples[2])))
 
             # make the necessary images
