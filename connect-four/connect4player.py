@@ -7,8 +7,6 @@ __author__ = "Tyler Weir"
 __license__ = "MIT"
 __date__ = "March 3, 2022"
 
-import time
-
 class ComputerPlayer:
     """
     This class represents a computer player in the connect4
@@ -44,8 +42,10 @@ class ComputerPlayer:
         # Use minimax to find the best move
         best_move = None
         best_move_score = -float('inf')
+        alpha = -float('inf')
+        beta = float('inf')
         for move in self.get_moves(rack, self.player_id):
-            score = self.minimax(move, 6, False, -float('inf'), float('inf'))
+            score, alpha, beta = self.minimax(move, 7, False, alpha, beta)
 
             if score > best_move_score:
                 best_move_score = score
@@ -72,30 +72,30 @@ class ComputerPlayer:
 
         # Return score if this is the bottom.
         if depth == 0:
-            return self.calc_heuristic(board_state)
+            return (self.calc_heuristic(board_state), alpha, beta)
         
         # Evaluate the max player
         if max_player:
             max_score = -float('inf')
             for move in self.get_moves(board_state, self.player_id):
-                score = self.minimax(move, depth-1, False, alpha, beta)
+                score = self.minimax(move, depth-1, False, alpha, beta)[0]
                 max_score = max(score, max_score)
                 alpha = max(alpha, max_score)
                 if beta <= alpha:
                     break
-            return max_score
+            return (max_score, alpha, beta)
         
         # Evaluate the min player
         else:
             min_score = float('inf')
             for move in self.get_moves(board_state, self.opponent_id):
-                score = self.minimax(move, depth-1, True, alpha, beta)
+                score = self.minimax(move, depth-1, True, alpha, beta)[0]
                 min_score = min(score, min_score)
                 beta = min(beta, min_score)
                 if beta <= alpha:
                     break
 
-            return min_score
+            return (min_score, alpha, beta)
 
     def print_board(self, board_state):
 
@@ -103,7 +103,6 @@ class ComputerPlayer:
         height = len(board_state[0])
 
         print("-----------------")
-
 
         # Traverse the rows
         for j in range(1, height+1):
