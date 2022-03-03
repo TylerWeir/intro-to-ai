@@ -36,20 +36,68 @@ class ComputerPlayer:
         """
         time.sleep(0.5) # pause purely for effect
 
-        while True:
-            play = random.randrange(0, len(rack))
-            if rack[play][-1] == 0: return play
+        self.print_board(rack)
 
-    def __minimax(self):
+        # Use minimax to find the best move
+        best_move = None
+        best_move_score = -float('inf')
+        for move in self.__get_moves(rack, self.player_id):
+            score = self.__minimax(move, 3, False)
+
+            if score > best_move_score:
+                best_move_score = score
+                best_move = move
+
+        # Decode the move from the board state
+        for i, col in enumerate(rack):
+            num_spaces = sum(x == 0 for x in col)
+            num_space_move = sum(x == 0 for x in best_move[i])
+
+            if num_spaces != num_space_move:
+                #This is where the tile was played
+                return i
+
+        print("major error")
+
+    def __minimax(self, board_state, depth, max_player):
         """Contains the minimax algorithm"""
 
-        for i in range(self.difficulty):
+        # Return eval if this is the bottom
+        if depth == 0:
+            return self.calc_heuristic(board_state)
+
+        if max_player:
+            max_score = -float('inf')
+            for move in self.__get_moves(board_state, self.player_id):
+                score = self.__minimax(move, depth-1, False)
+                max_score = max(score, max_score)
+            return max_score
+        
+        # This is the min player
+        else:
+            min_score = float('inf')
+            for move in self.__get_moves(board_state, self.opponent_id):
+                score = self.__minimax(move, depth-1, True)
+                min_score = min(score, min_score)
+
+            return min_score
+
+    def print_board(self, board_state):
+
+        width = len(board_state)
+        height = len(board_state[0])
+
+        print("-----------------")
 
 
-        return None
+        # Traverse the rows
+        for j in range(1, height+1):
+            row_string = ""
+            for i in range(width):
+                row_string += str(board_state[i][-j]) + " "
+            print(row_string)
 
-    
-    def __calc_heuristic(self, board_state):
+    def calc_heuristic(self, board_state):
         """Calculates the estimated score of a given board. Positive
         scores means the board favors the ai, negative scores means
         the boad favors the opponent."""
@@ -58,12 +106,15 @@ class ComputerPlayer:
         width = len(board_state)
         height = len(board_state[0])
 
+        num_quartets = 0
+
         # Iterate through each space on the board
         for i, column in enumerate(board_state):
-            for j, space_val in enumerate(board_state(i)):
+            for j, space_val in enumerate(board_state[i]):
                 
                 # Check rightward quartet
                 if i+3 < width:
+                    num_quartets += 1
                     quartet = [board_state[i][j],
                                board_state[i+1][j],
                                board_state[i+2][j],
@@ -71,8 +122,10 @@ class ComputerPlayer:
 
                     score += self.__calc_quartet_score(quartet)
 
+
                 # Check upward quartet
                 if j+3 < height:
+                    num_quartets += 1
                     quartet = [board_state[i][j],
                                board_state[i][j+1],
                                board_state[i][j+2],
@@ -82,6 +135,7 @@ class ComputerPlayer:
 
                 # Check up-right quartet
                 if i+3 < width and j+3 < height:
+                    num_quartets += 1
                     quartet = [board_state[i][j],
                                board_state[i+1][j+1],
                                board_state[i+2][j+2],
@@ -89,14 +143,17 @@ class ComputerPlayer:
 
                     score += self.__calc_quartet_score(quartet)
 
-                # Check up-down quartet
-                if(i+3 < width and j-3 > 0):
+                # Check down-right quartet
+                if(i+3 < width and j-3 >= 0):
+                    num_quartets += 1
                     quartet = [board_state[i][j],
                                board_state[i+1][j-1],
                                board_state[i+2][j-2],
                                board_state[i+3][j-3]]
 
                     score += self.__calc_quartet_score(quartet)
+        print(f"checked {num_quartets}")
+        return score
 
     def __calc_quartet_score(self, quartet):
         """Calculates the score contribution of a given quartet."""
@@ -109,7 +166,7 @@ class ComputerPlayer:
         # - contains 1 disc (and 3 empties) is worth +/- 1
 
         # Check at least one disc of each color
-        if quartet.contains(1) and quartet.contains(2):
+        if 1 in quartet and 2 in quartet:
             return 0
 
         # Check 4 discs of the same color
@@ -160,26 +217,60 @@ class ComputerPlayer:
             if sum_1 == 1:
                 return -1
 
-def __get_moves(board_state, player):
-    """Returns a list descibing the states of the board after
-    making any legal move."""
+        return 0
 
-    moves = []
+    def __get_moves(self, board_state, player):
+        """Returns a list descibing the states of the board after
+        making any legal move."""
 
-    # Traverse the columns and make a move if the column has room.
-    for i, col in enumerate(board_state):
-        if col[-1] == 0:
-            # The column is open for another move
-            # Find the index of the first zero
-            zero_index = col.index(0)
+        moves = []
 
-            # Make a copy of the current board state
-            # and update the playable column
-            new_board_state = [x[:] for x in board_state]
-            new_board_state[i][zero_index] = player
+        # Traverse the columns and make a move if the column has room.
+        for i, col in enumerate(board_state):
+            if col[-1] == 0:
+                # The column is open for another move
+                # Find the index of the first zero
+                zero_index = col.index(0)
 
-            moves.append(new_board_state)
+                # Make a copy of the current board state
+                # and update the playable column
+                new_board_state = [list(x) for x in board_state]
+                new_board_state[i][zero_index] = player
 
-        
+                moves.append(new_board_state)
 
+        return moves
 
+    def get_moves(self, board_state, player):
+        """Returns a list descibing the states of the board after
+        making any legal move."""
+
+        moves = []
+
+        # Traverse the columns and make a move if the column has room.
+        for i, col in enumerate(board_state):
+            if col[-1] == 0:
+                # The column is open for another move
+                # Find the index of the first zero
+                zero_index = col.index(0)
+
+                # Make a copy of the current board state
+                # and update the playable column
+                new_board_state = [list(x) for x in board_state]
+                new_board_state[i][zero_index] = player
+
+                moves.append(new_board_state)
+
+        return moves
+if __name__ == '__main__':
+    player = ComputerPlayer(1, 4)
+    
+    board = [[1, 2, 0, 0, 0, 0],
+            [0, 0, 0, 0, 0, 0],
+            [2, 0, 0, 0, 0, 0],
+            [0, 0, 0, 0, 0, 0],
+            [1, 1, 2, 0, 0, 0],
+            [2, 0, 0, 0, 0, 0],
+            [1, 1, 1, 1, 1, 1]]
+
+    player.calc_heuristic(board)
