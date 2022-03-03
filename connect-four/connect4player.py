@@ -36,17 +36,20 @@ class ComputerPlayer:
         """
         time.sleep(0.5) # pause purely for effect
 
-        self.print_board(rack)
-
         # Use minimax to find the best move
-        best_move = None
+        best_move = Noe
         best_move_score = -float('inf')
         for move in self.__get_moves(rack, self.player_id):
-            score = self.__minimax(move, 3, False)
+            score = self.__minimax(move, 5, False)
 
             if score > best_move_score:
                 best_move_score = score
                 best_move = move
+
+        if best_move == None:
+            # This means I'm gonna lose
+            # Just take the first move
+            best_move = self.get_moves(rack, self.player_id)[0]
 
         # Decode the move from the board state
         for i, col in enumerate(rack):
@@ -106,15 +109,12 @@ class ComputerPlayer:
         width = len(board_state)
         height = len(board_state[0])
 
-        num_quartets = 0
-
         # Iterate through each space on the board
         for i, column in enumerate(board_state):
             for j, space_val in enumerate(board_state[i]):
                 
                 # Check rightward quartet
                 if i+3 < width:
-                    num_quartets += 1
                     quartet = [board_state[i][j],
                                board_state[i+1][j],
                                board_state[i+2][j],
@@ -125,7 +125,6 @@ class ComputerPlayer:
 
                 # Check upward quartet
                 if j+3 < height:
-                    num_quartets += 1
                     quartet = [board_state[i][j],
                                board_state[i][j+1],
                                board_state[i][j+2],
@@ -135,7 +134,6 @@ class ComputerPlayer:
 
                 # Check up-right quartet
                 if i+3 < width and j+3 < height:
-                    num_quartets += 1
                     quartet = [board_state[i][j],
                                board_state[i+1][j+1],
                                board_state[i+2][j+2],
@@ -145,14 +143,12 @@ class ComputerPlayer:
 
                 # Check down-right quartet
                 if(i+3 < width and j-3 >= 0):
-                    num_quartets += 1
                     quartet = [board_state[i][j],
                                board_state[i+1][j-1],
                                board_state[i+2][j-2],
                                board_state[i+3][j-3]]
 
                     score += self.__calc_quartet_score(quartet)
-        print(f"checked {num_quartets}")
         return score
 
     def __calc_quartet_score(self, quartet):
