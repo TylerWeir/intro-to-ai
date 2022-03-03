@@ -5,15 +5,20 @@ __author__ = "Tyler Weir"
 __license__ = "MIT"
 __date__ = "February 2022"
 
-import random
 import time
 
 class ComputerPlayer:
+    """
+    This class represents a computer player in the connect4
+    game. It uses the minimax algorithm and is optimized with
+    alpha-beta pruning.
+    """
+
     def __init__(self, player_id, difficulty_level):
         """
-        Constructor, takes a difficulty level (likely the # of plies to look
-        ahead), and a player ID that's either 1 or 2 that tells the player what
-        its number is.
+        Constructor, takes a difficulty level (likely the # of plies
+        to look ahead), and a player ID that's either 1 or 2 that
+        tells the player what its number is.
         """
         self.player_id = player_id
 
@@ -37,10 +42,10 @@ class ComputerPlayer:
         time.sleep(0.5) # pause purely for effect
 
         # Use minimax to find the best move
-        best_move = Noe
+        best_move = None
         best_move_score = -float('inf')
-        for move in self.__get_moves(rack, self.player_id):
-            score = self.__minimax(move, 5, False)
+        for move in self.get_moves(rack, self.player_id):
+            score = self.minimax(move, 5, False, -float('inf'), float('inf'))
 
             if score > best_move_score:
                 best_move_score = score
@@ -62,26 +67,33 @@ class ComputerPlayer:
 
         print("major error")
 
-    def __minimax(self, board_state, depth, max_player):
+    def minimax(self, board_state, depth, max_player, alpha, beta):
         """Contains the minimax algorithm"""
 
-        # Return eval if this is the bottom
+        # Return score if this is the bottom.
         if depth == 0:
             return self.calc_heuristic(board_state)
-
+        
+        # Evaluate the max player
         if max_player:
             max_score = -float('inf')
-            for move in self.__get_moves(board_state, self.player_id):
-                score = self.__minimax(move, depth-1, False)
+            for move in self.get_moves(board_state, self.player_id):
+                score = self.minimax(move, depth-1, False, alpha, beta)
                 max_score = max(score, max_score)
+                alpha = max(alpha, max_score)
+                if beta <= alpha:
+                    break
             return max_score
         
-        # This is the min player
+        # Evaluate the min player
         else:
             min_score = float('inf')
-            for move in self.__get_moves(board_state, self.opponent_id):
-                score = self.__minimax(move, depth-1, True)
+            for move in self.get_moves(board_state, self.opponent_id):
+                score = self.minimax(move, depth-1, True, alpha, beta)
                 min_score = min(score, min_score)
+                beta = min(beta, min_score)
+                if beta <= alpha:
+                    break
 
             return min_score
 
@@ -215,7 +227,7 @@ class ComputerPlayer:
 
         return 0
 
-    def __get_moves(self, board_state, player):
+    def get_moves(self, board_state, player):
         """Returns a list descibing the states of the board after
         making any legal move."""
 
