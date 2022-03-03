@@ -1,9 +1,11 @@
 """
-This Connect Four player just picks a random spot to play. It's pretty dumb.
+This Connect Four player using the minimax algorithm optimized with
+alpha-beta pruning to dominate all human adversaries, including its
+creator.
 """
 __author__ = "Tyler Weir"
 __license__ = "MIT"
-__date__ = "February 2022"
+__date__ = "March 3, 2022"
 
 import time
 
