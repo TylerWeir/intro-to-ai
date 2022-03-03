@@ -41,13 +41,11 @@ class ComputerPlayer:
         current just pauses for half a second (for effect), and then
         chooses a random valid move.
         """
-        time.sleep(0.5) # pause purely for effect
-
         # Use minimax to find the best move
         best_move = None
         best_move_score = -float('inf')
         for move in self.get_moves(rack, self.player_id):
-            score = self.minimax(move, 5, False, -float('inf'), float('inf'))
+            score = self.minimax(move, 6, False, -float('inf'), float('inf'))
 
             if score > best_move_score:
                 best_move_score = score
@@ -135,7 +133,6 @@ class ComputerPlayer:
                                board_state[i+3][j]]
 
                     score += self.__calc_quartet_score(quartet)
-
 
                 # Check upward quartet
                 if j+3 < height:
@@ -247,40 +244,17 @@ class ComputerPlayer:
                 new_board_state = [list(x) for x in board_state]
                 new_board_state[i][zero_index] = player
 
-                moves.append(new_board_state)
+                # Add the board to the list in a tuple to be
+                # sorted according to the player requesting the
+                # moves. The i value is included to break score
+                # ties.
+                board_score = self.calc_heuristic(new_board_state)
+                moves.append((board_score, i, new_board_state))
 
-        return moves
+        # Min player wants lowest score first (accending order)
+        # Max player wants highest score first (decending order)
+        max_player = player == self.player_id
+        moves.sort(reverse=max_player)
 
-    def get_moves(self, board_state, player):
-        """Returns a list descibing the states of the board after
-        making any legal move."""
-
-        moves = []
-
-        # Traverse the columns and make a move if the column has room.
-        for i, col in enumerate(board_state):
-            if col[-1] == 0:
-                # The column is open for another move
-                # Find the index of the first zero
-                zero_index = col.index(0)
-
-                # Make a copy of the current board state
-                # and update the playable column
-                new_board_state = [list(x) for x in board_state]
-                new_board_state[i][zero_index] = player
-
-                moves.append(new_board_state)
-
-        return moves
-if __name__ == '__main__':
-    player = ComputerPlayer(1, 4)
-    
-    board = [[1, 2, 0, 0, 0, 0],
-            [0, 0, 0, 0, 0, 0],
-            [2, 0, 0, 0, 0, 0],
-            [0, 0, 0, 0, 0, 0],
-            [1, 1, 2, 0, 0, 0],
-            [2, 0, 0, 0, 0, 0],
-            [1, 1, 1, 1, 1, 1]]
-
-    player.calc_heuristic(board)
+        # extract the boards and return
+        return [c for (a, b, c) in moves]
