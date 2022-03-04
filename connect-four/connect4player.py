@@ -9,7 +9,6 @@ __date__ = "March 3, 2022"
 
 from multiprocessing import Process, Array
 from ctypes import c_float
-import math
 
 max_int = float('inf')
 min_int = -float('inf') 
@@ -81,7 +80,7 @@ class ComputerPlayer:
         scores = list(scores)
 
         best_move = moves[scores.index(max_score)]
-        print(f"choosing {max_score}")
+        print(f"player {self.player_id} choosing {max_score}")
 
         # Decode the move from the board state
         for i, col in enumerate(rack):
@@ -99,10 +98,11 @@ class ComputerPlayer:
 
         # Return score if this is the bottom.
         if depth == 0:
+            print("hit zero")
             scores[i] = self.calc_heuristic(board_state)
             return self.calc_heuristic(board_state)
 
-        # Return if this is the goal
+        # Return if this is end game 
         tmp = self.calc_heuristic(board_state)
         if tmp == -float('inf') or tmp == float('inf'):
             scores[i] = tmp
@@ -110,28 +110,33 @@ class ComputerPlayer:
         
         # Evaluate the max player
         if max_player:
-            max_score = min_int
+            score = min_int
             for move in self.get_moves(board_state, self.player_id):
-                score = self.minimax(move, depth-1, False, alpha, beta, scores, i)
-                max_score = max(score, max_score)
-                alpha = max(alpha, max_score)
-                if beta <= alpha:
-                    break
-            scores[i] = max_score
-            return max_score
+                score = max(score, self.minimax(move, depth-1, False, alpha, beta, scores, i))
+                
+                if score >= beta:
+                    scores[i] = score
+                    return score
+                
+                alpha = max(alpha, score)
+            
+            scores[i] = score
+            return score
         
         # Evaluate the min player
         else:
-            min_score = max_int
+            score = max_int
             for move in self.get_moves(board_state, self.opponent_id):
-                score = self.minimax(move, depth-1, True, alpha, beta, scores, i)
-                min_score = min(score, min_score)
-                beta = min(beta, min_score)
+                score = min(score, self.minimax(move, depth-1, True, alpha, beta, scores, i))
+
+                if score <= alpha:
+                    scores[i] = score 
+                    return score
+                    
+                beta = min(beta, score)
                 
-                if beta <= alpha:
-                    break
-            scores[i] = min_score
-            return min_score
+            scores[i] = score 
+            return score
 
     def calc_heuristic(self, board_state):
         """Calculates the estimated score of a given board. Positive
@@ -153,12 +158,7 @@ class ComputerPlayer:
                                board_state[i+2][j],
                                board_state[i+3][j])
 
-                    tmp = self.quartet_scores.get(quartet)[self.player_id-1]
-
-                    if tmp == float('inf') or tmp == -float('inf'):
-                        return tmp
-                    else:
-                        score += tmp 
+                    score += self.quartet_scores.get(quartet)[self.player_id-1]
 
                 # Check upward quartet
                 if j+3 < height:
@@ -166,12 +166,9 @@ class ComputerPlayer:
                                board_state[i][j+1],
                                board_state[i][j+2],
                                board_state[i][j+3])
+                    
+                    score += self.quartet_scores.get(quartet)[self.player_id-1]
 
-                    tmp = self.quartet_scores.get(quartet)[self.player_id-1]
-                    if tmp == float('inf') or tmp == -float('inf'):
-                        return tmp
-                    else:
-                        score += tmp                    
                 # Check up-right quartet
                 if i+3 < width and j+3 < height:
                     quartet = (board_state[i][j],
@@ -179,11 +176,7 @@ class ComputerPlayer:
                                board_state[i+2][j+2],
                                board_state[i+3][j+3])
 
-                    tmp = self.quartet_scores.get(quartet)[self.player_id-1]
-                    if tmp == float('inf') or tmp == -float('inf'):
-                        return tmp
-                    else:
-                        score += tmp
+                    score += self.quartet_scores.get(quartet)[self.player_id-1]
 
                 # Check down-right quartet
                 if(i+3 < width and j-3 >= 0):
@@ -192,11 +185,8 @@ class ComputerPlayer:
                                board_state[i+2][j-2],
                                board_state[i+3][j-3])
 
-                    tmp = self.quartet_scores.get(quartet)[self.player_id-1]
-                    if tmp == float('inf') or tmp == -float('inf'):
-                        return tmp
-                    else:
-                        score += tmp
+                    score += self.quartet_scores.get(quartet)[self.player_id-1]
+
         return score
 
 
