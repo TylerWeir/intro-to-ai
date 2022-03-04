@@ -7,6 +7,13 @@ __author__ = "Tyler Weir"
 __license__ = "MIT"
 __date__ = "March 3, 2022"
 
+from multiprocessing import Process, Array
+from ctypes import c_float
+import math
+
+max_int = float('inf')
+min_int = -float('inf') 
+
 class ComputerPlayer:
     """
     This class represents a computer player in the Connect Four
@@ -28,12 +35,9 @@ class ComputerPlayer:
             self.opponent_id = 1
 
         self.difficulty = difficulty_level
-        print(self.difficulty)
         
         # Used for fast quartet score lookup
-        print("starting quartet generation")
         self.quartet_scores = precompute_quartets()
-        print("finished")
 
     def pick_move(self, rack):
         """
@@ -48,28 +52,36 @@ class ComputerPlayer:
 
         # Vars to keep track of best move
         best_move = None
-        best_move_score = -float('inf')
-        alpha = -float('inf')
-        beta = float('inf')
+        alpha = max_int
+        beta = min_int 
 
         # Use minimax to score the possbible moves
-        # This first layer is a max player
-        for move in self.get_moves(rack, self.player_id):
-            score = self.minimax(move, self.difficulty, False, alpha, beta)
+        moves = self.get_moves(rack, self.player_id)
+        scores = Array(c_float, range(len(moves))) 
 
-            if score > best_move_score:
-                best_move_score = score
-                best_move = move
+        processes = []
+       
+        # make a process for each move
+        for i, move in enumerate(moves):
+            processes.append(Process(target=self.minimax, args=(move, self.difficulty, False, alpha, beta, scores, i)))
 
-            alpha = max(alpha, best_move_score)
-            if beta <= alpha:
-                print("Cut a whole branch!")
-                break
+        # start all the processes
+        for p in processes:
+            p.start()
 
-        # This means the bot will lose
-        if best_move == None:
-            # Just take the first move
-            best_move = self.get_moves(rack, self.player_id)[0]
+        # wait for all the processes
+        for p in processes:
+            p.join()
+
+        out = ""
+        for num in scores:
+            out+= str(num) + " "
+        print(out)
+        max_score = max(scores)
+        scores = list(scores)
+
+        best_move = moves[scores.index(max_score)]
+        print(f"choosing {max_score}")
 
         # Decode the move from the board state
         for i, col in enumerate(rack):
@@ -80,45 +92,52 @@ class ComputerPlayer:
                 #This is where the tile was played
                 return i
 
-    def minimax(self, board_state, depth, max_player, alpha, beta):
+    def minimax(self, board_state, depth, max_player, alpha, beta, scores, i):
         """Uses the minimax algorthm to score a board state. Returns
         the score of the board state along with the final alpha and 
         beta values."""
 
         # Return score if this is the bottom.
         if depth == 0:
+            scores[i] = self.calc_heuristic(board_state)
             return self.calc_heuristic(board_state)
+
+        # Return if this is the goal
+        tmp = self.calc_heuristic(board_state)
+        if tmp == -float('inf') or tmp == float('inf'):
+            scores[i] = tmp
+            return tmp
         
         # Evaluate the max player
         if max_player:
-            max_score = -float('inf')
+            max_score = min_int
             for move in self.get_moves(board_state, self.player_id):
-                score = self.minimax(move, depth-1, False, alpha, beta)
+                score = self.minimax(move, depth-1, False, alpha, beta, scores, i)
                 max_score = max(score, max_score)
                 alpha = max(alpha, max_score)
                 if beta <= alpha:
-                    print("max sliced a branch")
                     break
+            scores[i] = max_score
             return max_score
         
         # Evaluate the min player
         else:
-            min_score = float('inf')
+            min_score = max_int
             for move in self.get_moves(board_state, self.opponent_id):
-                score = self.minimax(move, depth-1, True, alpha, beta)
+                score = self.minimax(move, depth-1, True, alpha, beta, scores, i)
                 min_score = min(score, min_score)
                 beta = min(beta, min_score)
+                
                 if beta <= alpha:
-                    print("min sliced a branch")
                     break
-
+            scores[i] = min_score
             return min_score
 
     def calc_heuristic(self, board_state):
         """Calculates the estimated score of a given board. Positive
         scores means the board favors the ai, negative scores means
         the boad favors the opponent."""
-        score = 0
+        score = 0.0
 
         width = len(board_state)
         height = len(board_state[0])
@@ -134,7 +153,12 @@ class ComputerPlayer:
                                board_state[i+2][j],
                                board_state[i+3][j])
 
-                    score += self.quartet_scores.get(quartet)[self.player_id-1]
+                    tmp = self.quartet_scores.get(quartet)[self.player_id-1]
+
+                    if tmp == float('inf') or tmp == -float('inf'):
+                        return tmp
+                    else:
+                        score += tmp 
 
                 # Check upward quartet
                 if j+3 < height:
@@ -143,8 +167,11 @@ class ComputerPlayer:
                                board_state[i][j+2],
                                board_state[i][j+3])
 
-                    score += self.quartet_scores.get(quartet)[self.player_id-1]
-
+                    tmp = self.quartet_scores.get(quartet)[self.player_id-1]
+                    if tmp == float('inf') or tmp == -float('inf'):
+                        return tmp
+                    else:
+                        score += tmp                    
                 # Check up-right quartet
                 if i+3 < width and j+3 < height:
                     quartet = (board_state[i][j],
@@ -152,7 +179,11 @@ class ComputerPlayer:
                                board_state[i+2][j+2],
                                board_state[i+3][j+3])
 
-                    score += self.quartet_scores.get(quartet)[self.player_id-1]
+                    tmp = self.quartet_scores.get(quartet)[self.player_id-1]
+                    if tmp == float('inf') or tmp == -float('inf'):
+                        return tmp
+                    else:
+                        score += tmp
 
                 # Check down-right quartet
                 if(i+3 < width and j-3 >= 0):
@@ -161,9 +192,13 @@ class ComputerPlayer:
                                board_state[i+2][j-2],
                                board_state[i+3][j-3])
 
-                    score += self.quartet_scores.get(quartet)[self.player_id-1]
-
+                    tmp = self.quartet_scores.get(quartet)[self.player_id-1]
+                    if tmp == float('inf') or tmp == -float('inf'):
+                        return tmp
+                    else:
+                        score += tmp
         return score
+
 
 
     def get_moves(self, board_state, player):
@@ -205,15 +240,12 @@ def precompute_quartets():
     score for player 1 and the second index is the score for player 2."""
 
     # Make list of all possible quartets
-    a = [0, 1, 2]
-    b = [0, 1, 2]
-    c = [0, 1, 2]
-    d = [0, 1, 2]
-
-    all_quartets = [(i, j, k, l) for i in a
-                                 for j in b
-                                 for k in c
-                                 for l in d]
+    # Is this... Pythonic??
+    tiles = [0, 1, 2]
+    all_quartets = [(i, j, k, l) for i in tiles
+                                 for j in tiles 
+                                 for k in tiles 
+                                 for l in tiles]
 
     # Score each quartet and store scores in dict
     score_dict = {}
@@ -235,7 +267,7 @@ def calc_quartet_score(quartet):
 
     # Check at least one disc of each color
     if 1 in quartet and 2 in quartet:
-        return (0, 0)
+        return (0.0, 0.0)
     
     # Calculate the score for each player
     player1_score = 0
@@ -246,40 +278,45 @@ def calc_quartet_score(quartet):
 
     # Calc player1 score
     if sum_1 == 4:
-        player1_score = float('inf')
+        player1_score = max_int
     if sum_1 == 3:
-        player1_score = 100
+        player1_score = 100.0
     if sum_1 == 2:
-        player1_score = 10
+        player1_score = 10.0
     if sum_1 == 1:
-        player1_score = 1
+        player1_score = 1.0
 
     if sum_2 == 4:
-        player1_score = -float('inf')
+        player1_score = min_int 
     if sum_2 == 3:
-        player1_score = -100
+        player1_score = -100.0
     if sum_2 == 2:
-        player1_score = -10
+        player1_score = -10.0
     if sum_2 == 1:
-        player1_score = -1
+        player1_score = -1.0
 
     # Calc player2 score
     if sum_2 == 4:
-        player2_score = float('inf')
+        player2_score = max_int
     if sum_2 == 3:
-        player2_score = 100
+        player2_score = 100.0
     if sum_2 == 2:
-        player2_score = 10
+        player2_score = 10.0
     if sum_2 == 1:
-        player2_score = 1
+        player2_score = 1.0
 
     if sum_1 == 4:
-        player2_score = -float('inf')
+        player2_score = min_int 
     if sum_1 == 3:
-        player2_score = -100
+        player2_score = -100.0
     if sum_1 == 2:
-        player2_score = -10
+        player2_score = -10.0
     if sum_1 == 1:
-        player2_score = -1
+        player2_score = -1.0
 
     return (player1_score, player2_score)
+
+if __name__ == '__main__':
+    q = precompute_quartets()
+
+    print(q.get((0,0,0,0)))
