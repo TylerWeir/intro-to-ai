@@ -9,7 +9,7 @@ __date__ = "March 3, 2022"
 
 class ComputerPlayer:
     """
-    This class represents a computer player in the connect4
+    This class represents a computer player in the Connect Four
     game. It uses the minimax algorithm and is optimized with
     alpha-beta pruning.
     """
@@ -39,20 +39,23 @@ class ComputerPlayer:
         current just pauses for half a second (for effect), and then
         chooses a random valid move.
         """
-        # Use minimax to find the best move
+
+        # Vars to keep track of best move
         best_move = None
         best_move_score = -float('inf')
         alpha = -float('inf')
         beta = float('inf')
+
+        # Use minimax to score the possbible moves
         for move in self.get_moves(rack, self.player_id):
-            score, alpha, beta = self.minimax(move, 7, False, alpha, beta)
+            score, alpha, beta = self.minimax(move, self.difficulty, False, alpha, beta)
 
             if score > best_move_score:
                 best_move_score = score
                 best_move = move
 
+        # This means the bot will lose
         if best_move == None:
-            # This means I'm gonna lose
             # Just take the first move
             best_move = self.get_moves(rack, self.player_id)[0]
 
@@ -65,10 +68,10 @@ class ComputerPlayer:
                 #This is where the tile was played
                 return i
 
-        print("major error")
-
     def minimax(self, board_state, depth, max_player, alpha, beta):
-        """Contains the minimax algorithm"""
+        """Uses the minimax algorthm to score a board state. Returns
+        the score of the board state along with the final alpha and 
+        beta values."""
 
         # Return score if this is the bottom.
         if depth == 0:
@@ -97,20 +100,6 @@ class ComputerPlayer:
 
             return (min_score, alpha, beta)
 
-    def print_board(self, board_state):
-
-        width = len(board_state)
-        height = len(board_state[0])
-
-        print("-----------------")
-
-        # Traverse the rows
-        for j in range(1, height+1):
-            row_string = ""
-            for i in range(width):
-                row_string += str(board_state[i][-j]) + " "
-            print(row_string)
-
     def calc_heuristic(self, board_state):
         """Calculates the estimated score of a given board. Positive
         scores means the board favors the ai, negative scores means
@@ -121,9 +110,9 @@ class ComputerPlayer:
         height = len(board_state[0])
 
         # Iterate through each space on the board
-        for i, column in enumerate(board_state):
-            for j, space_val in enumerate(board_state[i]):
-                
+        for i, _ in enumerate(board_state):
+            for j, _ in enumerate(board_state[i]):
+
                 # Check rightward quartet
                 if i+3 < width:
                     quartet = [board_state[i][j],
@@ -163,7 +152,6 @@ class ComputerPlayer:
 
     def __calc_quartet_score(self, quartet):
         """Calculates the score contribution of a given quartet."""
-
         # For each quartet check:
         # - contains at least one disc of each color = 0
         # - contains 4 discs of the same color = +/- inf
