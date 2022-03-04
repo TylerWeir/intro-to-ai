@@ -28,12 +28,9 @@ class ComputerPlayer:
             self.opponent_id = 1
 
         self.difficulty = difficulty_level
-        print(self.difficulty)
         
         # Used for fast quartet score lookup
-        print("starting quartet generation")
         self.quartet_scores = precompute_quartets()
-        print("finished")
 
     def pick_move(self, rack):
         """
@@ -63,7 +60,6 @@ class ComputerPlayer:
 
             alpha = max(alpha, best_move_score)
             if beta <= alpha:
-                print("Cut a whole branch!")
                 break
 
         # This means the bot will lose
@@ -97,7 +93,6 @@ class ComputerPlayer:
                 max_score = max(score, max_score)
                 alpha = max(alpha, max_score)
                 if beta <= alpha:
-                    print("max sliced a branch")
                     break
             return max_score
         
@@ -109,7 +104,6 @@ class ComputerPlayer:
                 min_score = min(score, min_score)
                 beta = min(beta, min_score)
                 if beta <= alpha:
-                    print("min sliced a branch")
                     break
 
             return min_score
@@ -205,15 +199,11 @@ def precompute_quartets():
     score for player 1 and the second index is the score for player 2."""
 
     # Make list of all possible quartets
-    a = [0, 1, 2]
-    b = [0, 1, 2]
-    c = [0, 1, 2]
-    d = [0, 1, 2]
-
-    all_quartets = [(i, j, k, l) for i in a
-                                 for j in b
-                                 for k in c
-                                 for l in d]
+    tiles = [0, 1, 2]
+    all_quartets = [(i, j, k, l) for i in tiles
+                                 for j in tiles
+                                 for k in tiles 
+                                 for l in tiles]
 
     # Score each quartet and store scores in dict
     score_dict = {}
