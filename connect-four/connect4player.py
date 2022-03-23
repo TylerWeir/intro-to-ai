@@ -32,6 +32,9 @@ class ComputerPlayer:
         # Used for fast quartet score lookup
         self.quartet_scores = precompute_quartets()
 
+    def test(self, rack):
+        print(self.calc_heuristic(rack))
+
     def pick_move(self, rack):
         """
         Pick the move to make. It will be passed a rack with the
@@ -48,11 +51,13 @@ class ComputerPlayer:
         best_move_score = -float('inf')
         alpha = -float('inf')
         beta = float('inf')
-
+    
+        print("Scores")
         # Use minimax to score the possbible moves
         # This first layer is a max player
         for move in self.get_moves(rack, self.player_id):
-            score = self.minimax(move, self.difficulty, False, self.opponent_id, alpha, beta)
+            score = self.minimax(move, self.difficulty, False, alpha, beta)
+            print(score)
 
             if score > best_move_score:
                 best_move_score = score
@@ -76,25 +81,20 @@ class ComputerPlayer:
                 #This is where the tile was played
                 return i
 
-    def minimax(self, board_state, depth, max_player, player_id, alpha, beta):
+    def minimax(self, board_state, depth, max_player, alpha, beta):
         """Uses the minimax algorthm to score a board state. Returns
         the score of the board state along with the final alpha and 
         beta values."""
 
         # Return score if this is the bottom.
         if depth == 0:
-            return self.calc_heuristic(board_state, player_id)
-
-        # Check if this is a final game state
-        score = self.calc_heuristic(board_state, player_id)
-        if score == float('inf') or score == -float('inf'):
-            return score
+            return self.calc_heuristic(board_state)
         
         # Evaluate the max player
         if max_player:
             max_score = -float('inf')
             for move in self.get_moves(board_state, self.player_id):
-                score = self.minimax(move, depth-1, True, self.opponent_id, alpha, beta)
+                score = self.minimax(move, depth-1, False, alpha, beta)
                 max_score = max(score, max_score)
                 alpha = max(alpha, max_score)
                 if beta <= alpha:
@@ -105,7 +105,7 @@ class ComputerPlayer:
         else:
             min_score = float('inf')
             for move in self.get_moves(board_state, self.opponent_id):
-                score = self.minimax(move, depth-1, True, self.player_id, alpha, beta)
+                score = self.minimax(move, depth-1, True, alpha, beta)
                 min_score = min(score, min_score)
                 beta = min(beta, min_score)
                 if beta <= alpha:
@@ -113,7 +113,7 @@ class ComputerPlayer:
 
             return min_score
 
-    def calc_heuristic(self, board_state, player_id):
+    def calc_heuristic(self, board_state):
         """Calculates the estimated score of a given board. Positive
         scores means the board favors the ai, negative scores means
         the boad favors the opponent."""
@@ -123,7 +123,7 @@ class ComputerPlayer:
         height = len(board_state[0])
 
         # Iterate through each space on the board
-        for i in range(width-3):
+        for i in range(width):
             for j in range(height):
 
                 # Check rightward quartet
@@ -133,7 +133,7 @@ class ComputerPlayer:
                                board_state[i+2][j],
                                board_state[i+3][j])
 
-                    score += self.quartet_scores.get(quartet)[player_id-1]
+                    score += self.quartet_scores.get(quartet)[self.player_id-1]
 
                 # Check upward quartet
                 if j+3 < height:
@@ -142,7 +142,7 @@ class ComputerPlayer:
                                board_state[i][j+2],
                                board_state[i][j+3])
 
-                    score += self.quartet_scores.get(quartet)[player_id-1]
+                    score += self.quartet_scores.get(quartet)[self.player_id-1]
 
                 # Check up-right quartet
                 if i+3 < width and j+3 < height:
@@ -151,7 +151,7 @@ class ComputerPlayer:
                                board_state[i+2][j+2],
                                board_state[i+3][j+3])
 
-                    score += self.quartet_scores.get(quartet)[player_id-1]
+                    score += self.quartet_scores.get(quartet)[self.player_id-1]
 
                 # Check down-right quartet
                 if(i+3 < width and j-3 >= 0):
@@ -160,7 +160,7 @@ class ComputerPlayer:
                                board_state[i+2][j-2],
                                board_state[i+3][j-3])
 
-                    score += self.quartet_scores.get(quartet)[player_id-1]
+                    score += self.quartet_scores.get(quartet)[self.player_id-1]
 
         return score
 
@@ -187,7 +187,7 @@ class ComputerPlayer:
                 # sorted according to the player requesting the
                 # moves. The i value is included to break score
                 # ties.
-                board_score = self.calc_heuristic(new_board_state, player)
+                board_score = self.calc_heuristic(new_board_state)
                 moves.append((board_score, i, new_board_state))
 
         # Min player wants lowest score first (accending order)
@@ -278,3 +278,16 @@ def calc_quartet_score(quartet):
         player2_score = -1
 
     return (player1_score, player2_score)
+
+
+if __name__ == "__main__":
+    board = [[0, 0, 0, 0, 0, 0],
+            [0, 0, 0, 0, 0, 0],
+            [0, 0, 0, 0, 0, 0],
+            [1, 2, 1, 0, 0, 0],
+            [0, 0, 0, 0, 0, 0],
+            [0, 0, 0, 0, 0, 0], 
+            [0, 0, 0, 0, 0, 0]]
+
+    computer = ComputerPlayer(1, 1)
+    computer.test(board)
