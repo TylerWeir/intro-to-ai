@@ -58,7 +58,7 @@ class DecisionTree:
         if self.__is_uniform(yes_votes):
             # make a leaf node
             print("yes leaf")
-        els
+        else:
             # recurse on the yes voters
             self.build_tree_from_data(yes_votes)
 
@@ -96,10 +96,13 @@ class DecisionTree:
     def __is_uniform(self, data):
         """Returns true if the data set is uniformly labeled."""
 
+        if len(data) == 0:
+            return True
+
         test = data[0][1]
 
         for item in data:
-            if item[0][1] != test:
+            if item[1] != test:
                 return False
         
         return True
