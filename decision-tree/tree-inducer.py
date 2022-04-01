@@ -12,6 +12,7 @@ Date: March 22, 2022
 
 import sys
 import math
+import random
 
 class Node:
     """Represents a Node in the decision tree. Terminal Nodes
@@ -23,6 +24,7 @@ class Node:
         self.children = []
         self.vote = vote
         self.value = value
+        self.majority = None
 
     def add_child(self, child):
         """Adds a child node to the current child list"""
@@ -43,7 +45,6 @@ class Node:
     def __str__(self):
         return f"(NODE: {self.vote} {self.value})"
 
-
 class DecisionTree:
     """A Decision Tree classifier."""
 
@@ -56,8 +57,6 @@ class DecisionTree:
         """Builds the decision tree from the given tab deliminated
         file."""
 
-        #TODO PLEASE PLEASE PLEASE REFACTOR THIS!!
-
         ### Decision Tree Algorithm
 
         # First, Calculate the entropy of the entire training set.
@@ -65,15 +64,23 @@ class DecisionTree:
 
         # Second, Calculate the information gain of splitting based
         # on each feature
-
         best_feature = self.__calc_best_feature(data)
         if best_feature == -1:
             # Greatest information gain was 0
-            #TODO
-            node.value = 'R'
-            return
+            if not self.__has_same_history(data):
+                # different voting history
+                best_feature = random.randint(0, len(data[0][2])-1)
+                node.value = f"issue {best_feature}"
+            else:
+                # same voting history
+                # make a leaf node
+                node.value = self.__calc_majority(data)
+                node.value = self.__find_node_majority(node)
+                return
         else:
             node.value = f"issue {best_feature}"
+
+        node.majority = self.__calc_majority(data)
 
         # Third, Choose the single best feature and divide the data
         # set into two or more discrete groups.
@@ -87,10 +94,19 @@ class DecisionTree:
         self.__handle_subgroup(no_votes, node, '-')
         self.__handle_subgroup(ab_votes, node, '.')
 
+    def __has_same_history(self, data):
+        """Returns true if the entire dataset has the same voting history."""
+        history = data[0][2]
+
+        for item in data:
+            if item[2] != history:
+                return False
+
+        return True
+
     def __calc_best_feature(self, data):
         """Returns the feature index that results in the greatest information gain.
         if the greatest possible gain is 0 then -1 is returned."""
-
         best_feature = -1
         greatest_gain = 0
 
@@ -102,11 +118,6 @@ class DecisionTree:
                 best_feature = i
 
         return best_feature
-
-
-    def __handle_zero_gain(self, data, node):
-        """Handles if there is zero gain"""
-        return None
 
     def __handle_subgroup(self, subgroup, node, choice):
         """Handles the subgrouping from the decision tree."""
@@ -128,12 +139,13 @@ class DecisionTree:
                 branch_node = Node(choice, 'Some Issue', parent=node)
                 node.add_child(branch_node)
 
-                # recurse on the subgroup 
+                # recurse on the subgroup
                 self.build_tree_from_data(subgroup, branch_node)
         else:
             # There are zero reps
-            #TODO: classify based on majority of parent
-            leaf_node = Node(choice, 'R', parent=node)
+            majority = self.__find_node_majority(node)
+            leaf_node = Node(choice, majority, parent=node)
+            leaf_node.majority = majority
             node.add_child(leaf_node)
 
     def __calc_total_entropy(self, data):
@@ -152,10 +164,9 @@ class DecisionTree:
     def calc_accuracy(self):
         """Calculates the estimated accuracy of the decision tree."""
         return None
-    
+
     def __is_uniform(self, data):
         """Returns true if the data set is uniformly labeled."""
-
         if len(data) == 0:
             return True
 
@@ -164,11 +175,22 @@ class DecisionTree:
         for item in data:
             if item[1] != test:
                 return False
-        
         return True
 
-    def __persistant_calc_majority(self, node):
-        pass
+    def __find_node_majority(self, node):
+        """Recursively search up the tree looking for majority."""
+
+        # First try this node's majority
+        if node.majority:
+            return node.majority
+
+        # Then try the parent's majority
+        if node.parent:
+            return self.__find_node_majority(node.parent)
+        else:
+            # There is no parent
+            print("ERROR! Hit the root looking for majority")
+            sys.exit()
 
     def __calc_majority(self, data):
         """Returns the majority party."""
@@ -182,7 +204,7 @@ class DecisionTree:
                 D += 1
 
         if R > D:
-            return 'R' 
+            return 'R'
         elif D > R:
             return 'D'
         else:
@@ -206,7 +228,7 @@ class DecisionTree:
                 for i in range(depth):
                     spaces += "  "
 
-                print(spaces + root.vote + " " + root.value)
+                print(f"{spaces}{root.vote} {root.value}")
 
                 # Recurse on children
                 for child in root.children:
@@ -236,9 +258,22 @@ class DecisionTree:
         gain -= num_yes/len_data * entropy_yes
         gain -= num_no/len_data * entropy_no
         gain -= num_ab/len_data * entropy_ab
-        
         return gain
 
+    def __make_predicition(self, history):
+        """Makes a label prediction based on a given voting history."""
+        #TODO
+        return None
+
+    def __estimate_accuracy(self, data):
+        """Estimates the accuracy of the tree using """
+        #TODO
+        return None
+
+    def prune(self, tuning_data):
+        """Prunes the decision tree with a pruning set"""
+        #TODO
+        return None
 
     def __calc_entropy(self, data, choice):
         """Calculates the entropy of asking about choice."""
@@ -272,9 +307,21 @@ if __name__ == '__main__':
     # Split each line by white space
     data = [line.split() for line in data]
 
-    #TODO only build the tree from some of the data
-    # Create the Decision Tree
-    my_tree = DecisionTree(data)
+    # Split the data into a tuning and a training set
+    # Every 4th element into the tuning set
+    tuning_set = []
+    training_set = []
+    for i, item in enumerate(data):
+        if i%4 == 0:
+            tuning_set.append(item)
+        else:
+            training_set.append(item)
+
+    # Create the Decision Tree with the training_set
+    my_tree = DecisionTree(training_set)
+
+    # Prune the tree with the tuning_set
+    my_tree.prune(tuning_set)
 
     # Display the tree
     my_tree.print_tree()
