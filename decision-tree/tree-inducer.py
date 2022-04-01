@@ -42,6 +42,14 @@ class Node:
         """Returns true if the Node is a terminal Node."""
         return len(self.children) == -1
 
+    def get_vote_child(self, vote):
+        """Returns the child with the given vote."""
+        for child in self.children:
+            if child.vote == vote:
+                return child
+
+        return None
+
     def __str__(self):
         return f"(NODE: {self.vote} {self.value})"
 
@@ -70,7 +78,7 @@ class DecisionTree:
             if not self.__has_same_history(data):
                 # different voting history
                 best_feature = random.randint(0, len(data[0][2])-1)
-                node.value = f"issue {best_feature}"
+                node.value = best_feature
             else:
                 # same voting history
                 # make a leaf node
@@ -78,9 +86,10 @@ class DecisionTree:
                 node.value = self.__find_node_majority(node)
                 return
         else:
-            node.value = f"issue {best_feature}"
+            node.value = best_feature
 
         node.majority = self.__calc_majority(data)
+        node.majority = self.__find_node_majority(node)
 
         # Third, Choose the single best feature and divide the data
         # set into two or more discrete groups.
@@ -210,14 +219,16 @@ class DecisionTree:
         else:
             return None
 
-        
     def print_tree(self):
         """Prints a text representation of the decision tree."""
         def __print_tree(root, depth):
             """Recursive tree printing function."""
 
             if depth == 0:
-                print(f'{root.value}:')
+                if type(root.value) == int:
+                    print(f'issue {root.value}:')
+                else: 
+                    print(f'{root.value}')
 
                 # Recurse on children
                 for child in root.children:
@@ -228,7 +239,10 @@ class DecisionTree:
                 for i in range(depth):
                     spaces += "  "
 
-                print(f"{spaces}{root.vote} {root.value}")
+                if type(root.value) == int:
+                    print(f"{spaces}{root.vote} issue {root.value}:")
+                else:
+                    print(f"{spaces}{root.vote} {root.value}")
 
                 # Recurse on children
                 for child in root.children:
@@ -260,20 +274,59 @@ class DecisionTree:
         gain -= num_ab/len_data * entropy_ab
         return gain
 
-    def __make_predicition(self, history):
+    def make_prediction(self, history):
         """Makes a label prediction based on a given voting history."""
-        #TODO
-        return None
+        current_node = self.root
 
-    def __estimate_accuracy(self, data):
-        """Estimates the accuracy of the tree using """
-        #TODO
-        return None
+        while type(current_node.value) == int:
+            issue = current_node.value
+            vote = history[issue]
+            current_node = current_node.get_vote_child(vote)
 
-    def prune(self, tuning_data):
+        return current_node.value
+
+    def estimate_accuracy(self, data):
+        """Estimates the accuracy of the tree by ratio of correct out of total."""
+        num_correct = 0
+        for item in data:
+            prediction = self.make_prediction(item[2])
+            if prediction == item[1]:
+                num_correct += 1
+        return num_correct/len(data)
+
+    def prune(self, node, tuning_data):
         """Prunes the decision tree with a pruning set"""
-        #TODO
-        return None
+        # Recurse on children that aren't leafs
+        for child in node.children:
+            if type(child.value) == int:
+                self.prune(child, tuning_data)
+
+        if node.majority == None:
+            print("sneaky none")
+            return
+
+        # Old Accuracy
+        old_acc = self.estimate_accuracy(tuning_data)
+
+        # Swap node with leaf classifying as majority
+        tmp = node.value
+        node.value = self.__find_node_majority(node)
+        print(f"Trying cut with new majority {node.value}")
+
+        # New Estimate
+        new_acc = self.estimate_accuracy(tuning_data)
+
+        # Lock in the prune if it is better
+        if new_acc >= old_acc:
+            node.children = []
+            print("!!! Accepted prune !!!")
+            print("")
+        else:
+            # Otherwise revert
+            print("Rejected prune")
+            print("")
+            node.value = tmp
+
 
     def __calc_entropy(self, data, choice):
         """Calculates the entropy of asking about choice."""
@@ -291,7 +344,6 @@ class DecisionTree:
         tmp += -(num_d_choice/num_choice) * math.log2(num_d_choice/num_choice)
         return tmp
 
-    
 if __name__ == '__main__':
 
     # TODO Checks so silly users don't enter in bad data
@@ -320,8 +372,15 @@ if __name__ == '__main__':
     # Create the Decision Tree with the training_set
     my_tree = DecisionTree(training_set)
 
-    # Prune the tree with the tuning_set
-    my_tree.prune(tuning_set)
-
     # Display the tree
+    print(f"Original --- Accuracy: {my_tree.estimate_accuracy(tuning_set)}")
     my_tree.print_tree()
+
+    # Prune the tree with the tuning_set
+    my_tree.prune(my_tree.root, tuning_set)
+
+    print("============================================")
+    # Display the tree
+    print(f"pruned --- Accuracy: {my_tree.estimate_accuracy(tuning_set)}")
+    my_tree.print_tree()
+
