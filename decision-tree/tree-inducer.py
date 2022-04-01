@@ -13,6 +13,7 @@ Date: March 22, 2022
 import sys
 import math
 import random
+from os.path import exists
 
 class Node:
     """Represents a Node in the decision tree. Terminal Nodes
@@ -198,7 +199,6 @@ class DecisionTree:
             return self.__find_node_majority(node.parent)
         else:
             # There is no parent
-            print("ERROR! Hit the root looking for majority")
             sys.exit()
 
     def __calc_majority(self, data):
@@ -302,7 +302,6 @@ class DecisionTree:
                 self.prune(child, tuning_data)
 
         if node.majority == None:
-            print("sneaky none")
             return
 
         # Old Accuracy
@@ -311,7 +310,6 @@ class DecisionTree:
         # Swap node with leaf classifying as majority
         tmp = node.value
         node.value = self.__find_node_majority(node)
-        print(f"Trying cut with new majority {node.value}")
 
         # New Estimate
         new_acc = self.estimate_accuracy(tuning_data)
@@ -319,12 +317,8 @@ class DecisionTree:
         # Lock in the prune if it is better
         if new_acc >= old_acc:
             node.children = []
-            print("!!! Accepted prune !!!")
-            print("")
         else:
             # Otherwise revert
-            print("Rejected prune")
-            print("")
             node.value = tmp
 
 
@@ -344,21 +338,67 @@ class DecisionTree:
         tmp += -(num_d_choice/num_choice) * math.log2(num_d_choice/num_choice)
         return tmp
 
-if __name__ == '__main__':
+def cross_validation_acc(data):
+    """Estimate the accuracy of a tree with leave one out cross
+    validation."""
+    
+    prefix = "Calculating Accuracy:"
+    suffix = "Complete"
 
-    # TODO Checks so silly users don't enter in bad data
-    # Check if the file exists and is the correct format
-    file = sys.argv[1]
+    printProgressBar(0, len(data), prefix=prefix, suffix=suffix, length=30)
+    num_correct = 0
 
-    # Read the data set line by line
-    data = []
-    with open(file) as f:
-        data = f.readlines()
-    f.close()
+    for i, datum in enumerate(data):
+        # make a new dataset without datum
+        new_data = data[:]
+        new_data.pop(i)
 
-    # Split each line by white space
-    data = [line.split() for line in data]
+        train_set, tune_set = split_data(new_data)
 
+        # Create the Decision Tree with the training set
+        tree = DecisionTree(train_set)
+
+        # Prune the tree with the tuning set
+        tree.prune(my_tree.root, tune_set)
+
+        # Make a prediction from datum's features
+        prediction = tree.make_prediction(datum[2])
+        if prediction == datum[1]:
+            num_correct += 1
+
+        # Update progress bar
+        printProgressBar(i+1, len(data), prefix=prefix, suffix=suffix, length=30)
+
+    return num_correct/len(data)
+
+"""
+This code came from here: https://stackoverflow.com/questions/3173320/text-progress-bar-in-terminal-with-block-characters
+It was posted by a user named 'Greenstick' 
+"""
+def printProgressBar (iteration, total, prefix = '', suffix = '', decimals = 1, length = 100, fill = '=', printEnd = "\r"):
+    """
+    Call in a loop to create terminal progress bar
+    @params:
+        iteration   - Required  : current iteration (Int)
+        total       - Required  : total iterations (Int)
+        prefix      - Optional  : prefix string (Str)
+        suffix      - Optional  : suffix string (Str)
+        decimals    - Optional  : positive number of decimals in percent complete (Int)
+        length      - Optional  : character length of bar (Int)
+        fill        - Optional  : bar fill character (Str)
+        printEnd    - Optional  : end character (e.g. "\r", "\r\n") (Str)
+    """
+    percent = ("{0:." + str(decimals) + "f}").format(100 * (iteration / float(total)))
+    filledLength = int(length * iteration // total)
+    bar = fill * filledLength + ' ' * (length - filledLength)
+    print(f'{prefix} |{bar}| {percent}% {suffix}', end = printEnd)
+    # Print New Line on Complete
+    if iteration == total:
+        print()
+
+
+def split_data(data):
+    """Splits a dataset into a training set and a tuning set."""
     # Split the data into a tuning and a training set
     # Every 4th element into the tuning set
     tuning_set = []
@@ -369,18 +409,50 @@ if __name__ == '__main__':
         else:
             training_set.append(item)
 
+    return training_set[:], tuning_set[:]
+
+if __name__ == '__main__':
+    # Checks so silly users don't enter in bad data
+    # Check a file was supplied
+    if len(sys.argv) != 2:
+        print("Usage: python tree-inducer.py [FILE]")
+        sys.exit()
+
+    file = sys.argv[1]
+    
+    # Check that the file exists
+    if not exists(file):
+        print(f"tree-inducer: cannot access \'{file}\': no such file or directory")
+        sys.exit()
+
+    # Read the data set line by line
+    data = []
+    with open(file) as f:
+        data = f.readlines()
+    f.close()
+
+    # Split each line by white space
+    data = [line.split() for line in data]
+
+    training_set, tuning_set = split_data(data)
+
     # Create the Decision Tree with the training_set
     my_tree = DecisionTree(training_set)
 
-    # Display the tree
-    print(f"Original --- Accuracy: {my_tree.estimate_accuracy(tuning_set)}")
-    my_tree.print_tree()
-
     # Prune the tree with the tuning_set
     my_tree.prune(my_tree.root, tuning_set)
+    print("")
+    print("===================")
+    print("|| Decision Tree ||")
+    print("===================")
+    print("")
 
-    print("============================================")
     # Display the tree
-    print(f"pruned --- Accuracy: {my_tree.estimate_accuracy(tuning_set)}")
     my_tree.print_tree()
+    
+    # Cross validation accuracy
+    print("")
+    acc = cross_validation_acc(data)
+    print(f"Accuracy: {acc}")
+    print("")
 
