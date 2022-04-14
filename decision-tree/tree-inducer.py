@@ -171,10 +171,6 @@ class DecisionTree:
         entropy = -prob_d*math.log2(prob_d) -prob_r*math.log2(prob_r)
         return entropy
 
-    def calc_accuracy(self):
-        """Calculates the estimated accuracy of the decision tree."""
-        return None
-
     def __is_uniform(self, data):
         """Returns true if the data set is uniformly labeled."""
         if len(data) == 0:
@@ -226,7 +222,7 @@ class DecisionTree:
 
             if depth == 0:
                 if type(root.value) == int:
-                    print(f'issue {root.value}:')
+                    print(f'issue {chr(root.value + 65)}:')
                 else: 
                     print(f'{root.value}')
 
@@ -240,7 +236,7 @@ class DecisionTree:
                     spaces += "  "
 
                 if type(root.value) == int:
-                    print(f"{spaces}{root.vote} issue {root.value}:")
+                    print(f"{spaces}{root.vote} issue {chr(root.value + 65)}:")
                 else:
                     print(f"{spaces}{root.vote} {root.value}")
 
@@ -250,7 +246,6 @@ class DecisionTree:
 
         # Enter the recurisve printer
         __print_tree(self.root, 0)
-
 
     def __calc_info_gain(self, data, issue):
         """Calculates the information gain of a given decision."""
