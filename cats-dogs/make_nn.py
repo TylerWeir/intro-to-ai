@@ -14,8 +14,20 @@ from keras.activations import sigmoid
 from keras.layers import Conv2D
 from keras.layers import Dense
 from keras.layers import AveragePooling2D
+from keras.layers import GlobalAveragePooling2D
+from keras.layers import MaxPooling2D
 from keras.layers import Flatten
+from keras.layers import Add
+from keras.layers import Dropout
+from keras.layers import BatchNormalization
+from keras.layers import LeakyReLU
+from keras.layers import ReLU
+from keras.layers import Resizing
+from keras.layers import RandomFlip
+from keras.layers import RandomRotation
+from keras.layers import RandomZoom
 from tensorflow.keras.optimizers import Adam
+import keras.layers
 
 ###########################################
 #             DATA PIPELINE               #
@@ -27,7 +39,7 @@ def process_image(img):
     # Color images
     img = tf.image.decode_jpeg(img, channels=3)
 
-    # convert unit 8 tensor to floats in the [0,1] range
+    # convert uint8 tensor to floats in the [0,1] range
     img = tf.image.convert_image_dtype(img, tf.float32)
 
     # resize
@@ -98,36 +110,128 @@ def build_dataset(data_path):
     ds_train_batched = ds_train.batch(16).prefetch(tf.data.experimental.AUTOTUNE).cache()
     ds_test_batched = ds_test.batch(16).prefetch(tf.data.experimental.AUTOTUNE).cache()
 
+    # Augment the training data set
+    ds_train_batched = ds_train_batched.map(lambda x, y: (data_augmentation(x, training=True), y),
+                        num_parallel_calls=tf.data.AUTOTUNE)
+
     return ds_train_batched, ds_test_batched
+
+###########################################
+#            DATA AUGMENTATION            #
+###########################################
+
+data_augmentation = keras.Sequential([
+    RandomFlip("horizontal", input_shape=(100, 100, 3)),
+    RandomRotation(0.1),
+    RandomZoom(0.1),
+  ])
+
 
 ###########################################
 #             MODEL DEFINITION            #
 ###########################################
 
+
 def build_model():
     """Builds and returns a CNN classifier model."""
+    """
     # Use the quick and dirty 'Functional API'
     inputs = tf.keras.Input(shape=(100, 100, 3))
-    x = Conv2D(filters=6, kernel_size=(5, 5), activation='relu')(inputs)
+
+    # Augment
+    x = data_augmentation(inputs)
+
+    # Conv Block 1
+    x = Conv2D(filters=6, kernel_size=(5, 5), activation='relu')(x)
     x = AveragePooling2D()(x)
+
+    # Conv Block 2
     x = Conv2D(filters=16, kernel_size=(5, 5), activation='relu')(x)
     x = AveragePooling2D()(x)
+
+    # Neural Net
     x = Flatten()(x)
     x = Dense(units=120)(x)
     x = Dense(units=84)(x)
     x = Dense(units=1)(x)
 
-    leNet = keras.Model(inputs, x)
-    leNet.summary()
-    return leNet
+    classifier = keras.Model(inputs, x)
+    """
 
-def train_model(model, epochs, data):
+    inputs = tf.keras.Input(shape=(100, 100, 3))
+
+    # Augment
+    x = data_augmentation(inputs)
+
+    # Block 1 (100x100)
+    x = Conv2D(64, kernel_size=5, strides=2, padding="same")(x)
+    x = ReLU()(x)
+    x = MaxPooling2D()(x)
+    b1_output = x
+
+    # Block 2 (50x50)
+    x = Conv2D(64, kernel_size=3, strides=1, padding="same")(x)
+    x = ReLU()(x)
+    x = Conv2D(64, kernel_size=3, strides=1, padding="same")(x)
+    x = Add()([x, b1_output])
+    x = ReLU()(x)
+    b2_output = x
+
+    # Block 3 (50x50)
+    x = Conv2D(64, kernel_size=3, strides=1, padding="same")(x)
+    x = ReLU()(x)
+    x = Conv2D(64, kernel_size=3, strides=1, padding="same")(x)
+    x = Add()([x, b2_output])
+    x = ReLU()(x)
+    b3_output = x
+
+    # Block 4 (50x50) x = Conv2D(64, kernel_size=3, strides=1, padding="same")(x)
+    x = ReLU()(x)
+    x = Conv2D(64, kernel_size=3, strides=1, padding="same")(x)
+    x = Add()([x, b3_output])
+    x = ReLU()(x)
+    b4_output = x
+
+    # Block 5 (50x50)
+    x = Conv2D(64, kernel_size=3, strides=1, padding="same")(x)
+    x = ReLU()(x)
+    x = Conv2D(64, kernel_size=3, strides=1, padding="same")(x)
+    x = Add()([x, b4_output])
+    x = ReLU()(x)
+
+    # Output
+    x = GlobalAveragePooling2D()(x)
+    x = Flatten()(x)
+    x = Dense(1)(x)
+
+    classifier = keras.Model(inputs, x)
+
+    """
+    classifier = tf.keras.Sequential([
+      data_augmentation,
+      Conv2D(32, 3, padding='same', activation='relu'),
+      MaxPooling2D(),
+      Conv2D(64, 3, padding='same', activation='relu'),
+      MaxPooling2D(),
+      Conv2D(128, 3, padding='same', activation='relu'),
+      MaxPooling2D(),
+      Dropout(0.2),
+      Flatten(),
+      Dense(units=128, activation='relu'),
+      Dense(units=256, activation='relu'),
+      Dense(units=128, activation='relu'),
+      Dense(units=1)
+      ])
+      """
+    classifier.summary()
+    return classifier
+
+def train_model(model, epochs, data, val):
     model.compile(optimizer=Adam(),
             loss=keras.losses.BinaryCrossentropy(from_logits=True),
             metrics=[keras.metrics.BinaryAccuracy()])
-    model.fit(data, epochs=epochs)
+    model.fit(data, epochs=epochs, validation_data=val)
     return model
-
 
 if __name__ == '__main__':
     if len(sys.argv) != 3:
@@ -141,4 +245,6 @@ if __name__ == '__main__':
     train_ds, test_ds = build_dataset(sys.argv[1])
     my_model = build_model()
 
-    train_model(my_model, 5, train_ds)
+    train_model(my_model, 20, train_ds, test_ds)
+
+    my_model.save(sys.argv[2])
